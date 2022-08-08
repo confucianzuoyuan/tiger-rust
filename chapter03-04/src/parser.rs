@@ -105,6 +105,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // additive_expr -> multiplicative_expr ( ( "+" | "-" ) multiplicative_expr )*
     fn additive_expr(&mut self) -> Result<ExprWithPos> {
         let mut expr = self.multiplicative_expr()?;
         loop {
@@ -125,6 +126,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(expr)
     }
 
+    // arr_ty -> "array" "of" ident
     fn arr_ty(&mut self) -> Result<TyWithPos> {
         let pos = eat!(self, Array);
         eat!(self, Of);
@@ -136,11 +138,16 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // break_ -> "break"
     fn break_(&mut self) -> Result<ExprWithPos> {
         let pos = eat!(self, Break);
         Ok(WithPos::new(Expr::Break, pos))
     }
 
+    // call_expr_or_other -> ident "(" ")"
+    //                     | ident "(" expr ( "," expr )* ")"
+    //                     | ident "{" rec_create
+    //                     | ident lvalue_or_assign
     fn call_expr_or_other(&mut self) -> Result<ExprWithPos> {
         let name;
         let pos = eat!(self, Ident, name);
@@ -175,6 +182,9 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // dec -> fun_decs
+    //      | ty_decs
+    //      | var_dec
     fn dec(&mut self) -> Result<DeclarationWithPos> {
         match self.peek()?.token {
             Function => self.fun_decs(),
@@ -184,10 +194,12 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // expr -> logical_or_expr
     fn expr(&mut self) -> Result<ExprWithPos> {
         self.logical_or_expr()
     }
 
+    // field_dec -> ident ":" ident
     fn field_dec(&mut self) -> Result<FieldWithPos> {
         let field_name;
         let pos = eat!(self, Ident, field_name);
@@ -199,6 +211,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Field { escape: false, name, typ: WithPos::new(typ, type_pos) }, pos))
     }
 
+    // field_exp -> "." ident lvalue
     fn field_exp(&mut self, var: VarWithPos) -> Result<VarWithPos> {
         eat!(self, Dot);
         let field_name;
@@ -208,6 +221,7 @@ impl<'a, R: Read> Parser<'a, R> {
         self.lvalue(var)
     }
 
+    // fields -> field_dec ( "," field_dec )*
     fn fields(&mut self) -> Result<Vec<FieldWithPos>> {
         let field = self.field_dec()?;
         let mut fields = vec![field];
@@ -218,6 +232,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(fields)
     }
 
+    // field_create -> ident "=" expr
     fn field_create(&mut self) -> Result<RecordFieldWithPos> {
         let field_name;
         let pos = eat!(self, Ident, field_name);
@@ -230,6 +245,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // for_loop -> "for" ident ":=" expr "to" expr "do" expr
     fn for_loop(&mut self) -> Result<ExprWithPos> {
         let pos = eat!(self, For);
         let var_name;
@@ -301,6 +317,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // fun_decs -> fun_dec ( fun_dec )*
     fn fun_decs(&mut self) -> Result<DeclarationWithPos> {
         let func = self.fun_dec()?;
         let pos = func.pos;
@@ -311,6 +328,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Declaration::Function(functions), pos))
     }
 
+    // fun_dec -> "function" ident "(" fields? ")" optional_type "=" expr
     fn fun_dec(&mut self) -> Result<FuncDeclarationWithPos> {
         let pos = eat!(self, Function);
         let func_name;
@@ -330,6 +348,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // if_then_else -> "if" expr "then" expr ( "else" expr )?
     fn if_then_else(&mut self) -> Result<ExprWithPos> {
         let pos = eat!(self, If);
         let test = Box::new(self.expr()?);
@@ -357,6 +376,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Expr::Int { value }, pos))
     }
 
+    // let_expr -> "let" dec* "in" expr* "end"
     fn let_expr(&mut self) -> Result<ExprWithPos> {
         let pos = eat!(self, Let);
         let mut declarations = vec![self.dec()?];
@@ -381,6 +401,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // logical_and_expr -> relational_expr ( "&" relational_expr )*
     fn logical_and_expr(&mut self) -> Result<ExprWithPos> {
         let mut expr = self.relational_expr()?;
         while let Ok(&Ampersand) = self.peek_token() {
@@ -396,6 +417,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(expr)
     }
 
+    // logical_or_expr -> logical_and_expr ( "|" logical_and_expr )*
     fn logical_or_expr(&mut self) -> Result<ExprWithPos> {
         let mut expr = self.logical_and_expr()?;
         while let Ok(&Pipe) = self.peek_token() {
@@ -411,6 +433,8 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(expr)
     }
 
+    // lvalue -> subscript
+    //         | field_exp
     fn lvalue(&mut self, var: VarWithPos) -> Result<VarWithPos> {
         match self.peek()?.token {
             OpenSquare => self.subscript(var),
@@ -419,6 +443,8 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // lvalue_or_assign -> lvalue "of" expr ":=" expr
+    //                   | lvalue ":=" expr
     fn lvalue_or_assign(&mut self, var: VarWithPos) -> Result<ExprWithPos> {
         let var = self.lvalue(var)?;
         let value =
@@ -458,6 +484,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // multiplicative_expr -> unary_expr ( ( "*" | "-" ) unary_expr )*
     fn multiplicative_expr(&mut self) -> Result<ExprWithPos> {
         let mut expr = self.unary_expr()?;
         loop {
@@ -483,6 +510,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Expr::Nil, pos))
     }
 
+    // optional_type -> ":" ident
     fn optional_type(&mut self) -> Result<Option<SymbolWithPos>> {
         let mut typ = None;
         if let Colon = self.peek()?.token {
@@ -495,6 +523,16 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(typ)
     }
 
+    // primary_expr -> break_
+    //               | for_loop
+    //               | if_then_else
+    //               | call_expr_or_other
+    //               | int_lit
+    //               | let_expr
+    //               | nil
+    //               | seq_exp
+    //               | string_lit
+    //               | while_loop
     fn primary_expr(&mut self) -> Result<ExprWithPos> {
         match self.peek()?.token {
             Break => self.break_(),
@@ -511,6 +549,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // rec_create -> "{" field_create ( "," field_create )* "}"
     fn rec_create(&mut self, typ: SymbolWithPos, pos: Pos) -> Result<ExprWithPos> {
         eat!(self, OpenCurly);
         let field = self.field_create()?;
@@ -527,6 +566,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // rec_ty -> "{" fields? "}"
     fn rec_ty(&mut self) -> Result<TyWithPos> {
         let pos = eat!(self, OpenCurly);
         let fields = fields!(self, CloseCurly);
@@ -535,6 +575,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Ty::Record { fields }, pos))
     }
 
+    // relational_expr -> additive_expr ( ( "=" | ">" | ">=" | "<" | "<=" | "<>" ) additive_expr )*
     fn relational_expr(&mut self) -> Result<ExprWithPos> {
         let mut expr = self.additive_expr()?;
         loop {
@@ -559,6 +600,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(expr)
     }
 
+    // seq_exp -> "(" expr ( ";" expr )*
     fn seq_exp(&mut self) -> Result<ExprWithPos> {
         eat!(self, OpenParen);
         let mut exprs = vec![self.expr()?];
@@ -577,6 +619,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Expr::Str { value }, pos))
     }
 
+    // subscript -> "[" expr "]" lvalue
     fn subscript(&mut self, var: VarWithPos) -> Result<VarWithPos> {
         eat!(self, OpenSquare);
         let expr = Box::new(self.expr()?);
@@ -589,6 +632,9 @@ impl<'a, R: Read> Parser<'a, R> {
         self.lvalue(var)
     }
 
+    // ty -> arr_ty
+    //     | rec_ty
+    //     | ident
     fn ty(&mut self) -> Result<TyWithPos> {
         match self.peek()?.token {
             Array => self.arr_ty(),
@@ -603,6 +649,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // ty_decs -> ty_dec ty_dec*
     fn ty_decs(&mut self) -> Result<DeclarationWithPos> {
         let dec = self.ty_dec()?;
         let pos = dec.pos;
@@ -613,6 +660,7 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(WithPos::new(Declaration::Type(declarations), pos))
     }
 
+    // ty_dec -> "type" ty
     fn ty_dec(&mut self) -> Result<TypeDecWithPos> {
         let pos = eat!(self, Type);
         let type_name;
@@ -626,6 +674,8 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // unary_expr -> "-" unary_expr
+    //             | primary_expr
     fn unary_expr(&mut self) -> Result<ExprWithPos> {
         match self.peek()?.token {
             Minus => {
@@ -642,6 +692,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // var_dec -> "var" ident optional_type ":=" expr
     fn var_dec(&mut self) -> Result<DeclarationWithPos> {
         let pos = eat!(self, Var);
         let var_name;
@@ -658,6 +709,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }, pos))
     }
 
+    // while_loop -> "while" expr "do" expr
     fn while_loop(&mut self) -> Result<ExprWithPos> {
         let pos = eat!(self, While);
         let test = Box::new(self.expr()?);
