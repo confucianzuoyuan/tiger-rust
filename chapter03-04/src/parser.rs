@@ -705,4 +705,288 @@ impl<'a, R: Read> Parser<'a, R> {
             unexpected: token.token,
         })
     }
+
+    // 以下为Pretty-Print打印的代码
+    // 将抽象语法树打印的更清晰一些
+    fn operator_to_name(&mut self, op: Operator) -> &str {
+        match op {
+            Operator::Plus => "PlusOp",
+            Operator::Minus => "MinusOp",
+            Operator::Times => "TimesOp",
+            Operator::Divide => "DivideOp",
+            Operator::Equal => "EqOp",
+            Operator::Neq => "NeqOp",
+            Operator::Lt => "LtOp",
+            Operator::Le => "LeOp",
+            Operator::Gt => "GtOp",
+            Operator::Ge => "GeOp",
+            _ => "No Such Operator",
+        }
+    }
+
+    fn indent(&mut self, n: i32) {
+        if n > 0 {
+            print!(" ");
+            self.indent(n-1);
+        }
+    }
+
+    fn pp_var(&mut self, v: &VarWithPos, d: i32) {
+        match v.node {
+            Var::Simple { ref ident } => {
+                self.indent(d);
+                print!("SimpleVar(");
+                print!("{}", self.symbols.name(ident.node));
+                print!(")");
+            },
+            Var::Field { ref ident, ref this } => {
+                self.indent(d);
+                println!("FieldVar(");
+                self.pp_var(this, d+1);
+                println!(",");
+                self.indent(d+1);
+                print!("{}", self.symbols.name(ident.node));
+                print!(")");
+            },
+            Var::Subscript { ref expr, ref this } => {
+                self.indent(d);
+                println!("SubscriptVar(");
+                self.pp_var(this, d+1);
+                println!(",");
+                self.pp_expr(expr, d+1);
+                print!(")");
+            },
+        }
+    }
+
+    pub fn pp_expr(&mut self, expr: &ExprWithPos, d: i32) {
+        match expr.node {
+            Expr::Variable(ref v) => {
+                self.indent(d);
+                println!("VarExp(");
+                self.pp_var(v, d+1);
+                print!(")");
+            },
+            Expr::Nil => {
+                self.indent(d);
+                print!("NilExp");
+            },
+            Expr::Int{ value } => {
+                self.indent(d);
+                print!("IntExp(");
+                print!("{}", value.to_string());
+                print!(")");
+            },
+            Expr::Str { ref value } => {
+                self.indent(d);
+                print!("StringExp(\"");
+                print!("{}", value);
+                print!("\")");
+            },
+            Expr::Call { ref args, function } => {
+                self.indent(d);
+                print!("CallExp(");
+                print!("{}", self.symbols.name(function));
+                print!(",[");
+                for arg in args {
+                    println!("");
+                    self.pp_expr(arg, d+1);
+                    print!(",")
+                }
+                print!("])");
+            },
+            Expr::Oper { ref left, ref oper, ref right } => {
+                self.indent(d);
+                print!("OpExp(");
+                print!("{}", self.operator_to_name(oper.node));
+                println!(",");
+                self.pp_expr(left, d+1);
+                println!(",");
+                self.pp_expr(right, d+1);
+                print!("])");
+            },
+            Expr::Record { ref fields, ref typ } => {
+                self.indent(d);
+                print!("RecordExp(");
+                print!("{}", self.symbols.name(typ.node));
+                println!(",[");
+                for field in fields {
+                    println!("");
+                    self.indent(d);
+                    print!("(");
+                    print!("{}", self.symbols.name(field.node.ident));
+                    println!(",");
+                    self.pp_expr(&field.node.expr, d+2);
+                    print!(")");
+                    print!(",");
+                }
+                println!("])");
+            },
+            Expr::Sequence( ref es) => {
+                self.indent(d);
+                print!("SeqExp[");
+                for e in es {
+                    println!("");
+                    self.pp_expr(e, d+1);
+                    print!(",");
+                }
+                print!("]");
+            },
+            Expr::Assign { ref expr, ref var } => {
+                self.indent(d);
+                println!("AssignExp(");
+                self.pp_var(var, d+1);
+                println!(",");
+                self.pp_expr(expr, d+1);
+                print!(")");
+            },
+            Expr::If { ref else_, ref test, ref then } => {
+                self.indent(d);
+                println!("IfExp(");
+                self.pp_expr(test, d+1);
+                println!(",");
+                self.pp_expr(then, d+1);
+                match else_ {
+                    Some(e) => {
+                        println!(",");
+                        self.pp_expr(e, d+1);
+                    },
+                    None => (),
+                };
+                print!(")");
+            },
+            Expr::While { ref body, ref test } => {
+                self.indent(d);
+                println!("WhileExp(");
+                self.pp_expr(test, d+1);
+                println!(",");
+                self.pp_expr(body, d+1);
+                print!(")");
+            },
+            Expr::Break => {
+                self.indent(d);
+                print!("BreakExp");
+            },
+            Expr::Let { ref body, ref declarations } => {
+                self.indent(d);
+                print!("LetExp([");
+                for dec in declarations {
+                    println!("");
+                    self.pp_dec(dec, d+1);
+                    print!(",");
+                }
+                println!("],");
+                self.pp_expr(body, d+1);
+                print!(")");
+            },
+            Expr::Array { ref init, ref size, ref typ } => {
+                self.indent(d);
+                print!("ArrayExp(");
+                print!("{}", self.symbols.name(typ.node));
+                println!(",");
+                self.pp_expr(size, d+1);
+                println!(",");
+                self.pp_expr(init, d+1);
+                print!(")");
+            }
+        }
+    }
+
+    fn pp_dec(&mut self, dec: &DeclarationWithPos, d: i32) {
+        match dec.node {
+            Declaration::Function(ref l) => {
+                self.indent(d);
+                print!("FunctionDec[");
+                for fundec in l {
+                    println!("");
+                    self.indent(d);
+                    print!("(");
+                    print!("{}", self.symbols.name(fundec.node.name));
+                    print!(",[");
+                    for field in &fundec.node.params {
+                        self.indent(d);
+                        print!("(");
+                        print!("{}", self.symbols.name(field.node.name));
+                        print!(",");
+                        print!("{}", field.node.escape);
+                        print!(",");
+                        print!("{}", self.symbols.name(field.node.typ.node));
+                        print!(")");
+                    }
+                    print!(",");
+                }
+                print!("]");
+            },
+            Declaration::Type(ref l) => {
+                self.indent(d);
+                print!("TypeDec[");
+                for tydec in l {
+                    println!("");
+                    self.indent(d);
+                    print!("(");
+                    print!("{}", self.symbols.name(tydec.node.name.node));
+                    print!(",");
+                    self.pp_ty(&tydec.node.ty, d);
+                    print!(")");
+                    print!(",");
+                }
+                println!("],");
+            },
+            Declaration::VariableDeclaration { escape, ref init, name, ref typ } => {
+                self.indent(d);
+                print!("VarDec(");
+                print!("{}", self.symbols.name(name));
+                print!(",");
+                print!("{}", escape);
+                print!(",");
+                match typ {
+                    Some(t) => {
+                        print!("Some(");
+                        print!("{}", self.symbols.name(t.node));
+                        print!(")");
+                    },
+                    None => {
+                        print!("None");
+                    }
+                };
+                println!(",");
+                self.pp_expr(init, d+1);
+                print!(")");
+            },
+        }
+    }
+
+    fn pp_ty(&mut self, ty: &TyWithPos, d: i32) {
+        match ty.node {
+            Ty::Name { ref ident } => {
+                self.indent(d);
+                print!("NameTy(");
+                print!("{}", self.symbols.name(ident.node));
+                print!(")");
+            },
+            Ty::Record { ref fields } => {
+                self.indent(d);
+                print!("RecordTy[");
+                for field in fields {
+                    println!("");
+                    self.indent(d);
+                    print!("(");
+                    print!("{}", self.symbols.name(field.node.name));
+                    print!(",");
+                    print!("{}", field.node.escape);
+                    print!(",");
+                    print!("{}", self.symbols.name(field.node.typ.node));
+                    print!(")");
+                    print!(",");
+                }
+                print!("]");
+            },
+            Ty::Array { ref ident } => {
+                self.indent(d);
+                print!("ArrayTy(");
+                print!("{}", self.symbols.name(ident.node));
+                print!(")");
+            },
+        }
+    }
 }

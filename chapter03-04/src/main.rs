@@ -38,7 +38,8 @@ fn drive(symbols: &mut Symbols<()>) -> Result<(), Error> {
         let lexer = Lexer::new(file, file_symbol);
         let mut parser = Parser::new(lexer, symbols);
         let ast = parser.parse()?;
-        println!("{:?}", ast);
+        parser.pp_expr(&ast, 0);
+        println!("");
     }
     Ok(())
 }
