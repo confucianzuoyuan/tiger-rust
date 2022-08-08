@@ -731,6 +731,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // 打印变量
     fn pp_var(&mut self, v: &VarWithPos, d: i32) {
         match v.node {
             Var::Simple { ref ident } => {
@@ -759,6 +760,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // 打印表达式
     pub fn pp_expr(&mut self, expr: &ExprWithPos, d: i32) {
         match expr.node {
             Expr::Variable(ref v) => {
@@ -892,6 +894,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // 打印声明
     fn pp_dec(&mut self, dec: &DeclarationWithPos, d: i32) {
         match dec.node {
             Declaration::Function(ref l) => {
@@ -956,6 +959,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
     }
 
+    // 打印类型
     fn pp_ty(&mut self, ty: &TyWithPos, d: i32) {
         match ty.node {
             Ty::Name { ref ident } => {
