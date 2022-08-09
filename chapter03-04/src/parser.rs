@@ -842,10 +842,16 @@ impl<'a, R: Read> Parser<'a, R> {
                 print!("CallExp(");
                 print!("{}", self.symbols.name(function));
                 print!(",[");
-                for arg in args {
+                if args.len() > 0 {
+                    let mut i = 0;
+                    while i < args.len() - 1 {
+                        println!("");
+                        self.pp_expr(args.get(i).unwrap(), d+1);
+                        print!(",");
+                        i = i + 1;
+                    }
                     println!("");
-                    self.pp_expr(arg, d+1);
-                    print!(",")
+                    self.pp_expr(args.get(i).unwrap(), d+1);
                 }
                 print!("])");
             },
@@ -864,25 +870,40 @@ impl<'a, R: Read> Parser<'a, R> {
                 print!("RecordExp(");
                 print!("{}", self.symbols.name(typ.node));
                 println!(",[");
-                for field in fields {
-                    println!("");
+                let mut f = |field: &WithPos<RecordField>, d: i32| {
                     self.indent(d);
                     print!("(");
                     print!("{}", self.symbols.name(field.node.ident));
                     println!(",");
-                    self.pp_expr(&field.node.expr, d+2);
+                    self.pp_expr(&field.node.expr, d+1);
                     print!(")");
-                    print!(",");
+                };
+                if fields.len() > 0 {
+                    let mut i = 0;
+                    while i < fields.len() - 1 {
+                        println!("");
+                        f(fields.get(i).unwrap(), d+1);
+                        print!(",");
+                        i = i + 1;
+                    }
+                    println!("");
+                    f(fields.get(i).unwrap(), d+1);
                 }
                 println!("])");
             },
             Expr::Sequence( ref es) => {
                 self.indent(d);
                 print!("SeqExp[");
-                for e in es {
+                if es.len() > 0 {
+                    let mut i = 0;
+                    while i < es.len() - 1 {
+                        println!("");
+                        self.pp_expr(es.get(i).unwrap(), d);
+                        print!(",");
+                        i = i + 1;
+                    }
                     println!("");
-                    self.pp_expr(e, d+1);
-                    print!(",");
+                    self.pp_expr(es.get(i).unwrap(), d);
                 }
                 print!("]");
             },
@@ -924,10 +945,16 @@ impl<'a, R: Read> Parser<'a, R> {
             Expr::Let { ref body, ref declarations } => {
                 self.indent(d);
                 print!("LetExp([");
-                for dec in declarations {
+                if declarations.len() > 0 {
+                    let mut i = 0;
+                    while i < declarations.len() - 1 {
+                        println!("");
+                        self.pp_dec(declarations.get(i).unwrap(), d);
+                        print!(",");
+                        i = i + 1;
+                    }
                     println!("");
-                    self.pp_dec(dec, d+1);
-                    print!(",");
+                    self.pp_dec(declarations.get(i).unwrap(), d);
                 }
                 println!("],");
                 self.pp_expr(body, d+1);
@@ -952,8 +979,7 @@ impl<'a, R: Read> Parser<'a, R> {
             Declaration::Function(ref l) => {
                 self.indent(d);
                 print!("FunctionDec[");
-                for fundec in l {
-                    println!("");
+                let mut f = |fundec: &WithPos<FuncDeclaration>, d: i32| {
                     self.indent(d);
                     print!("(");
                     print!("{}", self.symbols.name(fundec.node.name));
@@ -968,24 +994,43 @@ impl<'a, R: Read> Parser<'a, R> {
                         print!("{}", self.symbols.name(field.node.typ.node));
                         print!(")");
                     }
-                    print!(",");
+                };
+                if l.len() > 0 {
+                    let mut i = 0;
+                    while i < l.len() - 1 {
+                        println!("");
+                        f(l.get(i).unwrap(), d);
+                        print!(",");
+                        i = i + 1;
+                    }
+                    println!("");
+                    f(l.get(i).unwrap(), d);
                 }
                 print!("]");
             },
             Declaration::Type(ref l) => {
                 self.indent(d);
                 print!("TypeDec[");
-                for tydec in l {
-                    println!("");
+                let mut f = |tydec: &WithPos<TypeDec>, d: i32| {
                     self.indent(d);
                     print!("(");
                     print!("{}", self.symbols.name(tydec.node.name.node));
                     print!(",");
                     self.pp_ty(&tydec.node.ty, d);
                     print!(")");
-                    print!(",");
+                };
+                if l.len() > 0 {
+                    let mut i = 0;
+                    while i < l.len() - 1 {
+                        println!("");
+                        f(l.get(i).unwrap(), d);
+                        print!(",");
+                        i = i + 1;
+                    }
+                    println!("");
+                    f(l.get(i).unwrap(), d);
                 }
-                println!("],");
+                print!("]");
             },
             Declaration::VariableDeclaration { escape, ref init, name, ref typ } => {
                 self.indent(d);
@@ -1023,8 +1068,7 @@ impl<'a, R: Read> Parser<'a, R> {
             Ty::Record { ref fields } => {
                 self.indent(d);
                 print!("RecordTy[");
-                for field in fields {
-                    println!("");
+                let mut f = |field: &WithPos<Field>, d: i32| {
                     self.indent(d);
                     print!("(");
                     print!("{}", self.symbols.name(field.node.name));
@@ -1033,7 +1077,17 @@ impl<'a, R: Read> Parser<'a, R> {
                     print!(",");
                     print!("{}", self.symbols.name(field.node.typ.node));
                     print!(")");
-                    print!(",");
+                };
+                if fields.len() > 0 {
+                    let mut i = 0;
+                    while i < fields.len() - 1 {
+                        println!("");
+                        f(fields.get(i).unwrap(), d);
+                        print!(",");
+                        i = i + 1;
+                    }
+                    println!("");
+                    f(fields.get(i).unwrap(), d);
                 }
                 print!("]");
             },
