@@ -50,11 +50,16 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
         let lexer = Lexer::new(file, file_symbol);
         let mut parser = Parser::new(lexer, symbols);
         let ast = parser.parse()?;
+        println!("\n========= ast =============\n");
+        parser.pp_expr(&ast, 0);
+        println!("\n========= ast =============\n");
         let escape_env = find_escapes(&ast, Rc::clone(&strings));
         let mut env = Env::<X86_64>::new(&strings, escape_env);
         let semantic_analyzer = SemanticAnalyzer::new(&mut env, Rc::clone(&strings));
         let ir = semantic_analyzer.analyze(ast)?;
+        println!("\n========== ir ============\n");
         println!("{:?}", ir);
+        println!("\n========== ir ============\n");
     }
     Ok(())
 }
