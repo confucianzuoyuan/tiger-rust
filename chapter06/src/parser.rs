@@ -994,6 +994,18 @@ impl<'a, R: Read> Parser<'a, R> {
                         print!("{}", self.symbols.name(field.node.typ.node));
                         print!(")");
                     }
+                    println!("],");
+                    match &fundec.node.result {
+                        None => print!("None"),
+                        Some(s) => {
+                            print!("Some(");
+                            print!("{}", self.symbols.name(s.node));
+                            print!(")");
+                        },
+                    };
+                    println!(",");
+                    self.pp_expr(&fundec.node.body, d+1);
+                    print!(")");
                 };
                 if l.len() > 0 {
                     let mut i = 0;

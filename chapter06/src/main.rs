@@ -51,8 +51,6 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
         let mut parser = Parser::new(lexer, symbols);
         let ast = parser.parse()?;
         let escape_env = find_escapes(&ast, Rc::clone(&strings));
-        parser.pp_expr(&ast, 0);
-        println!("");
         let mut env = Env::<X86_64>::new(&strings, escape_env);
         let semantic_analyzer = SemanticAnalyzer::new(&mut env, Rc::clone(&strings));
         let ir = semantic_analyzer.analyze(ast)?;
