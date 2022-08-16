@@ -124,6 +124,7 @@ impl<'a, F: Clone + Frame + PartialEq> SemanticAnalyzer<'a, F> {
                 ]),
                 pos,
             ),
+            // 主程序的父层是outermost
             &gen::outermost(),
             None,
         );
@@ -134,6 +135,9 @@ impl<'a, F: Clone + Frame + PartialEq> SemanticAnalyzer<'a, F> {
         }
     }
 
+    /// 有时VarEntry中的类型可能是一个“Name类型”（即Ty_Name类型），而由transExp返回的所有类型都应当是“实在的”
+    /// 类型（即由其名字已追溯到了它们最终的定义），因此一种较好的做法是让一个函数（函数名或许为actual_ty）跳过
+    /// 所有的Name类型。该函数的结果是一个非Name的类型Ty_ty，尽管当这个类型是一个记录或者数组时，其成员会含有Name类型。
     fn actual_ty(&mut self, typ: &Type) -> Type {
         match *typ {
             Type::Name(_, Some(ref typ)) => *typ.clone(),
@@ -202,6 +206,7 @@ impl<'a, F: Clone + Frame + PartialEq> SemanticAnalyzer<'a, F> {
         }
     }
 
+    /// 判断两个类型是否相同
     fn check_types(&mut self, expected: &Type, unexpected: &Type, pos: Pos) {
         let expected = self.actual_ty(expected);
         let unexpected = self.actual_ty(unexpected);
@@ -220,6 +225,9 @@ impl<'a, F: Clone + Frame + PartialEq> SemanticAnalyzer<'a, F> {
         }
     }
 
+    /// 查找类型别名对应的类型
+    /// 例如：type a = int
+    /// 通过a查出a是int类型的别名
     fn get_type(&mut self, symbol: &SymbolWithPos, add: AddError) -> Type {
         if let Some(typ) = self.env.look_type(symbol.node) {
             return typ.clone();
@@ -231,6 +239,7 @@ impl<'a, F: Clone + Frame + PartialEq> SemanticAnalyzer<'a, F> {
         }
     }
 
+    /// 查找变量的类型
     fn get_var(&mut self, symbol: &SymbolWithPos) -> Entry<F> {
         if let Some(entry) = self.env.look_var(symbol.node) {
             return entry.clone();
@@ -238,6 +247,7 @@ impl<'a, F: Clone + Frame + PartialEq> SemanticAnalyzer<'a, F> {
         self.undefined_identifier(symbol)
     }
 
+    /// 遍历声明，做语义分析并转换成IR
     fn trans_dec(
         &mut self,
         declaration  : &DeclarationWithPos,
