@@ -1,0 +1,296 @@
+use std::collections::{
+    HashMap,
+    HashSet,
+    VecDeque
+};
+use std::mem;
+
+use ir::{
+    Exp,
+    RelationlOp,
+    Statement
+};
+use ir::Statement::Label;
+use temp::{Label, Lable, Temp};
+
+pub fn linearize(statement : Statement) -> Vec<Statement> {
+    let statement = do_statement(statement);
+
+    fn linear(statement : Statement, result : &mut Vec<Statement>) {
+        if let Statement::Sequence(statement1, statement2) = statement {
+            linear(*statement1, result);
+            linear(*statement2, result);
+        } else {
+            result.push(statement);
+        }
+    }
+
+    let mut result = vec![];
+    linear(statement, &mut result);
+    result
+}
+
+/// 将语句序列转换成基本块
+/// 基本块也是语句序列
+pub fn basic_blocks(statements : Vec<Statement>) -> (Vec<Vec<Statement>>, Label) {
+    let done = Label::new();
+
+    #[derive!(PartialEq)]
+    enum State {
+        Label,
+        InBlock,
+    }
+
+    let mut state = State::Label;
+    let mut basic_blocks = vec![];
+
+    for statement in statements {
+        if state == State::Label {
+            state = State::InBlock;
+            match statement {
+                Statement::Label(_) => {
+                    basic_blocks.push(vec![statement]);
+                    continue;
+                },
+                _ => basic_blocks.push(vec![Statement::Label(Label::new())]),
+            }
+        }
+
+        if state == State::InBlock {
+            match statement {
+                Statement::Label(ref label) => {
+                    basic_blocks
+                        .last_mut()
+                        .expect("at least one basic block")
+                        .push(Statement::Jump(
+                            Exp::Name(label.clone()),
+                            vec![label.clone()],
+                        ));
+                },
+                Statement::Jump(_, _) |
+                Statement::CondJump { .. } => {
+                    basic_blocks
+                        .last_mut()
+                        .expect("at least one basic block for a jump")
+                        .push(statement);
+                    state = State::Label;
+                },
+                statement =>
+                    basic_blocks
+                        .last_mut()
+                        .expect("at least one basic block for a jump")
+                        .push(statement),
+            }
+        }
+    }
+
+    if state == State::InBlock {
+        basic_blocks
+            .last_mut()
+            .expect("at least one basic block")
+            .push(Statement::Jump(
+                Exp::Name(done.clone()),
+                vec![done.clone()]
+            ));
+    }
+
+    (basic_blocks, done)
+}
+
+pub fn trace_schedule(
+    mut basic_blocks : Vec<Vec<Statement>>,
+    done_label : Label,
+) -> Vec<Statement> {
+    let mut label_mapping = HashMap::new();
+    label_mapping.insert(
+        &done_label,
+        usize::max_value(),
+    );
+    for (index, basic_block) in basic_blocks.iter().enumerate() {
+        match basic_block.first().expect("at least one statement in basic block") {
+            Statement::Label(label) => {
+                let _ = label_mapping.insert(
+                    label,
+                    index,
+                );
+            },
+            _ => panic!("label as first statement of basic block"),
+        }
+    }
+
+    let mut marks = HashSet::new();
+    let mut traces = vec![];
+    let mut current_trace;
+    for (mut index, basic_block) in basic_blocks.iter().enumerate() {
+        current_trace = vec![];
+        while !marks.contains(&index) {
+            marks.insert(index);
+            current_trace.push(index);
+
+            match basic_block.last().expect("at least one instruction in basic block") {
+                Statement::CondJump { true_label, false_label, .. } => {
+                    if let Some(&next_index) = marks.get(&label_mapping[false_label]) {
+                        index = next_index;
+                    } else if let Some(&next_index) = marks.get(&label_mapping[true_label]) {
+                        index = next_index;
+                    }
+                },
+                Statement::Jump(_, labels) => {
+                    for label in labels {
+                        if let Some(&next_index) = marks.get(&label_mapping[label]) {
+                            index = next_index;
+                            break;
+                        }
+                    }
+                },
+                _ => panic!("Expected jump as last statement of basic blocks"),
+            }
+        }
+        if !current_trace.is_empty() {
+            traces.push(current_trace);
+        }
+    }
+
+    let mut statements = VecDeque::new();
+
+    for trace in traces {
+        for index in trace {
+            let trace_statements = mem::replace(&mut basic_blocks[index], vec![]);
+            for statement in trace_statements {
+                statements.push_back(statement);
+            }
+        }
+    }
+
+    let mut new_statements = vec![];
+
+    let mut current = statements.pop_front();
+
+    new_statements
+}
+
+/// 在将树形IR线性化时，三种情况交换不影响程序正确性
+/// 1; _ => _; 1;
+/// _; 符号常数 => 符号常数; _;
+/// _; 1 => 1; _
+fn commute(expr1 : &Statement, expr2 : &Exp) -> bool {
+    match (expr1, expr2) {
+        (Statement::Exp(Exp::Const(_)), _) => true,
+        (_, Exp::Name(_)) => true,
+        (_, Exp::Const(_)) => true,
+        _ => false,
+    }
+}
+
+fn reorder1(expr : Exp) -> (Statement, Exp) {
+    do_expression(expr)
+}
+
+/// 对两个表达式进行重排序
+/// 分三种情况：
+/// 第一种情况：
+///     重排序(call(func, args), expr2)
+///     =>
+///     重排序(move call(func, args) temp, expr2)
+/// 第二种情况：
+///     重排序expr1 => (stmts1, expr1)
+///     重排序expr2 => (stmts2, expr2)
+///     如果stmts2和expr1可以交换，那么转成
+///     stmts1; stmts2; expr1 expr2
+/// 第三种情况：
+///     重排序expr1 => (stmts1, expr1)
+///     重排序expr2 => (stmts2, expr2)
+///     如果stmts2和expr1不可以交换，那么转成
+///     stmts1; move expr1 temp; expr1 expr2
+fn reorder2(expr1 : Exp, expr2 : Exp) -> (Statement, Exp, Exp) {
+    if let Exp::Call(_, _) = expr1 {
+        let temp = Temp::new();
+        return reorder2(
+            Exp::ExpSequence(
+                Box::new(Statement::Move(
+                    Exp::Temp(temp),
+                    expr1
+                )),
+                Box::new(Exp::Temp(temp)),
+            ),
+            expr2,
+        );
+    }
+
+    let (statements, expr1) = do_expression(expr1);
+    let (statements2, expr2) = do_expression(expr2);
+
+    if commute(&statements2, &expr1) {
+        (Statement::Sequence(
+            Box::new(statements),
+            Box::new(statements2)),
+         expr1,
+         expr2)
+    } else {
+        let temp = Temp::new();
+        let statements = Statement::Sequence(
+            Box::new(statements),
+            Box::new(Statement::Sequence(
+                Box::new(Statement::Move(
+                    Exp::Temp(temp),
+                    expr1,
+                )),
+                Box::new(statements2),
+            )),
+        );
+        (statements, Exp::Temp(temp), expr2)
+    }
+}
+
+fn reorder(mut exprs : VecDeque<Exp>) -> (Statement, VecDeque<Exp>) {
+    if exprs.is_empty() {
+        return (Statement::Exp(Exp::Const(0)), VecDeque::new());
+    }
+
+    if let Exp::Call(_, _) = exprs.front().expect("front") {
+        let temp = Temp::new();
+        let function = exprs.pop_front().expect("pop front");
+        exprs.push_front(
+            Exp::ExpSequence(
+                Box::new(Statement::Move(
+                    Exp::Temp(temp),
+                    function,
+                )),
+                Box::new(Exp::Temp(temp))
+            )
+        );
+        return reorder(exprs);
+    }
+
+    let (statements, expr1) = do_expression(exprs.pop_front().expect("pop front"));
+    let (statements2, mut expr2) = reorder(exprs);
+
+    if commute(&statements2, &expr1) {
+        expr2.push_front(expr1);
+        (append(statements, statements2), expr2)
+    } else {
+        let temp = Temp::new();
+        let statements = append(
+            statements,
+            append(
+                Statement::Move(Exp::Temp(temp), expr1),
+                statements2,
+            ),
+        );
+        expr2.push_front(Exp::Temp(temp));
+        (statements, expr2)
+    }
+}
+
+/// 将两个语句序列拼成一个语句序列
+fn append(statement1 : Statement, statement2 : Statement) -> Statement {
+    match (statement1, statement2) {
+        (Statement::Exp(Exp::Const(_)), statement2) => statement2,
+        (statement1, Statement::Exp(Exp::Const(_))) => statement1,
+        (statement1, statement2) =>
+            Statement::Sequence(
+                Box::new(statement1),
+                Box::new(statement2)
+            ),
+    }
+}
