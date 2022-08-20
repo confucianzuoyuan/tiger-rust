@@ -394,6 +394,9 @@ pub fn var_decs(variables : Vec<Statement>, body : Exp) -> Exp {
     let len = variables.len();
     let mut iter = variables.into_iter();
     let var1 = iter.next().expect("first variable declaration");
+    if len < 2 {
+        return ExpSequence(Box::new(var1), Box::new(body));
+    }
     let var2 = iter.next().expect("second variable declaration");
     let mut statements = Sequence(
         Box::new(var1),

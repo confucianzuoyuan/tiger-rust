@@ -12,10 +12,10 @@ use ir::{
 };
 use temp::{Label, Temp};
 
-pub fn linearize(statement : Statement) -> Vec<Statement> {
+pub fn linearize(statement: Statement) -> Vec<Statement> {
     let statement = do_statement(statement);
 
-    fn linear(statement : Statement, result : &mut Vec<Statement>) {
+    fn linear(statement: Statement, result: &mut Vec<Statement>) {
         if let Statement::Sequence(statement1, statement2) = statement {
             linear(*statement1, result);
             linear(*statement2, result);
@@ -31,7 +31,7 @@ pub fn linearize(statement : Statement) -> Vec<Statement> {
 
 /// 将语句序列转换成基本块
 /// 基本块也是语句序列
-pub fn basic_blocks(statements : Vec<Statement>) -> (Vec<Vec<Statement>>, Label) {
+pub fn basic_blocks(statements: Vec<Statement>) -> (Vec<Vec<Statement>>, Label) {
     let done = Label::new();
 
     #[derive(PartialEq)]
@@ -42,7 +42,6 @@ pub fn basic_blocks(statements : Vec<Statement>) -> (Vec<Vec<Statement>>, Label)
 
     let mut state = State::Label;
     let mut basic_blocks = vec![];
-
     for statement in statements {
         if state == State::Label {
             state = State::InBlock;
@@ -58,39 +57,21 @@ pub fn basic_blocks(statements : Vec<Statement>) -> (Vec<Vec<Statement>>, Label)
         if state == State::InBlock {
             match statement {
                 Statement::Label(ref label) => {
-                    basic_blocks
-                        .last_mut()
-                        .expect("at least one basic block")
-                        .push(Statement::Jump(
-                            Exp::Name(label.clone()),
-                            vec![label.clone()],
-                        ));
+                    basic_blocks.last_mut().expect("at least one basic block")
+                        .push(Statement::Jump(Exp::Name(label.clone()), vec![label.clone()]));
+                    basic_blocks.push(vec![statement]);
                 },
-                Statement::Jump(_, _) |
-                Statement::CondJump { .. } => {
-                    basic_blocks
-                        .last_mut()
-                        .expect("at least one basic block for a jump")
-                        .push(statement);
+                Statement::Jump(_, _) | Statement::CondJump { .. } => {
+                    basic_blocks.last_mut().expect("at least one basic block for a jump").push(statement);
                     state = State::Label;
                 },
-                statement =>
-                    basic_blocks
-                        .last_mut()
-                        .expect("at least one basic block for a jump")
-                        .push(statement),
+                statement => basic_blocks.last_mut().expect("at least one basic block for a jump").push(statement),
             }
         }
     }
 
     if state == State::InBlock {
-        basic_blocks
-            .last_mut()
-            .expect("at least one basic block")
-            .push(Statement::Jump(
-                Exp::Name(done.clone()),
-                vec![done.clone()]
-            ));
+        basic_blocks.last_mut().expect("at least one basic block").push(Statement::Jump(Exp::Name(done.clone()), vec![done.clone()]));
     }
 
     (basic_blocks, done)
