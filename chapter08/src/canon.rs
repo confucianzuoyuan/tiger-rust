@@ -7,11 +7,10 @@ use std::mem;
 
 use ir::{
     Exp,
-    RelationlOp,
+    RelationalOp,
     Statement
 };
-use ir::Statement::Label;
-use temp::{Label, Lable, Temp};
+use temp::{Label, Temp};
 
 pub fn linearize(statement : Statement) -> Vec<Statement> {
     let statement = do_statement(statement);
@@ -35,7 +34,7 @@ pub fn linearize(statement : Statement) -> Vec<Statement> {
 pub fn basic_blocks(statements : Vec<Statement>) -> (Vec<Vec<Statement>>, Label) {
     let done = Label::new();
 
-    #[derive!(PartialEq)]
+    #[derive(PartialEq)]
     enum State {
         Label,
         InBlock,
@@ -166,7 +165,84 @@ pub fn trace_schedule(
 
     let mut current = statements.pop_front();
 
+    while let Some(statement) = current {
+        match statement {
+            Statement::CondJump { op, left, right, false_label, true_label } => {
+                let next = statements.pop_front().expect("pop front label");
+                if next == Statement::Label(true_label.clone()) {
+                    new_statements.push(Statement::CondJump {
+                        op : negate_condition(op),
+                        left,
+                        right,
+                        false_label : true_label,
+                        true_label : false_label,
+                    });
+                } else if next == Statement::Label(false_label.clone()) {
+                    new_statements.push(Statement::CondJump {
+                        op,
+                        left,
+                        right,
+                        false_label,
+                        true_label,
+                    });
+                } else {
+                    let new_false = Label::new();
+                    new_statements.push(Statement::CondJump {
+                        op,
+                        left,
+                        right,
+                        false_label : new_false.clone(),
+                        true_label,
+                    });
+                    new_statements.push(Statement::Label(new_false));
+                    new_statements.push(Statement::Jump(
+                        Exp::Name(false_label.clone()),
+                        vec![false_label],
+                    ));
+                }
+                new_statements.push(next);
+            },
+            Statement::Jump(expr, labels) => {
+                match expr {
+                    Exp::Name(label) => {
+                        if labels.len() == 1 && labels[0] == label {
+                            if let Some(ref statement) = statements.front() {
+                                if let Statement::Label(ref next_label) = statement {
+                                    if next_label == &label {
+                                        current = statements.pop_front();
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+
+                        new_statements.push(Statement::Jump(Exp::Name(label), labels));
+                    },
+                    _ => new_statements.push(Statement::Jump(expr, labels))
+                }
+            },
+            statement => new_statements.push(statement),
+        }
+        current = statements.pop_front();
+    }
+
+    new_statements.push(Statement::Label(done_label));
     new_statements
+}
+
+fn negate_condition(op : RelationalOp) -> RelationalOp {
+    match op {
+        RelationalOp::Equal => RelationalOp::NotEqual,
+        RelationalOp::GreaterOrEqual => RelationalOp::LesserThan,
+        RelationalOp::GreaterThan => RelationalOp::LesserOrEqual,
+        RelationalOp::LesserOrEqual => RelationalOp::GreaterThan,
+        RelationalOp::LesserThan => RelationalOp::GreaterOrEqual,
+        RelationalOp::NotEqual => RelationalOp::Equal,
+        RelationalOp::UnsignedGreaterOrEqual => RelationalOp::UnsignedLesserThan,
+        RelationalOp::UnsignedGreaterThan => RelationalOp::UnsignedLesserOrEqual,
+        RelationalOp::UnsignedLesserOrEqual => RelationalOp::UnsignedGreaterThan,
+        RelationalOp::UnsignedLesserThan => RelationalOp::UnsignedGreaterOrEqual,
+    }
 }
 
 /// 在将树形IR线性化时，三种情况交换不影响程序正确性
@@ -279,6 +355,117 @@ fn reorder(mut exprs : VecDeque<Exp>) -> (Statement, VecDeque<Exp>) {
         );
         expr2.push_front(Exp::Temp(temp));
         (statements, expr2)
+    }
+}
+
+fn reorder_statement1<F : FnOnce(Exp) -> Statement>(expr : Exp, builder : F) -> Statement {
+    let (statements, expr) = reorder1(expr);
+    Statement::Sequence(Box::new(statements), Box::new(builder(expr)))
+}
+
+fn reorder_statement2<F : FnOnce(Exp, Exp) -> Statement>(expr1 : Exp, expr2 : Exp, builder : F) -> Statement {
+    let (statements, expr1, expr2) = reorder2(expr1, expr2);
+    Statement::Sequence(Box::new(statements), Box::new(builder(expr1, expr2)))
+}
+
+fn reorder_statement<F : FnOnce(VecDeque<Exp>) -> Statement>(exprs : VecDeque<Exp>, build : F) -> Statement {
+    let (statements, exprs) = reorder(exprs);
+    Statement::Sequence(Box::new(statements), Box::new(build(exprs)))
+}
+
+fn reorder_expression1<F : FnOnce(Exp) -> Exp>(expr : Exp, builder : F) -> (Statement, Exp) {
+    let (statements, expr) = reorder1(expr);
+    (statements, builder(expr))
+}
+
+fn reorder_expression2<F : FnOnce(Exp, Exp) -> Exp>(expr1 : Exp, expr2 : Exp, builder : F) -> (Statement, Exp) {
+    let (statements, expr1, expr2) = reorder2(expr1, expr2);
+    (statements, builder(expr1, expr2))
+}
+
+fn reorder_expression<F : FnOnce(VecDeque<Exp>) -> Exp>(exprs : VecDeque<Exp>, builder : F) -> (Statement, Exp) {
+    let (statements, exprs) = reorder(exprs);
+    (statements, builder(exprs))
+}
+
+fn do_statement(statement : Statement) -> Statement {
+    match statement {
+        Statement::Sequence(statement1, statement2) =>
+            append(do_statement(*statement1), do_statement(*statement2)),
+        Statement::Jump(expr, labels) =>
+            reorder_statement1(expr, |expr| Statement::Jump(expr, labels)),
+        Statement::CondJump { op, left, right, true_label, false_label } =>
+            reorder_statement2(left, right, |left, right| Statement::CondJump {
+                op,
+                left,
+                right,
+                true_label,
+                false_label,
+            }),
+        Statement::Move(Exp::Temp(temp), Exp::Call(function, arguments)) => {
+            let mut exprs = VecDeque::new();
+            exprs.push_back(*function);
+            exprs.extend(arguments);
+            reorder_statement(exprs, |mut exprs| {
+                let function = exprs.pop_front().expect("pop front");
+                let exprs = exprs.into_iter().collect();
+                Statement::Move(
+                    Exp::Temp(temp),
+                    Exp::Call(Box::new(function), exprs)
+                )
+            })
+        },
+        Statement::Move(Exp::Temp(temp), expr) =>
+            reorder_statement1(expr, |expr| Statement::Move(Exp::Temp(temp), expr)),
+        Statement::Move(Exp::Mem(mem), expr) =>
+            reorder_statement2(*mem, expr, |mem, expr| Statement::Move(Exp::Mem(Box::new(mem)), expr)),
+        Statement::Move(Exp::ExpSequence(statement, expr1), expr2) =>
+            do_statement(Statement::Sequence(
+                statement,
+                Box::new(Statement::Move(*expr1, expr2))
+            )),
+        Statement::Exp(Exp::Call(function, arguments)) => {
+            let mut exprs = VecDeque::new();
+            exprs.push_back(*function);
+            exprs.extend(arguments);
+            reorder_statement(exprs, |mut exprs| {
+                let function = exprs.pop_front().expect("pop front");
+                let exprs = exprs.into_iter().collect();
+                Statement::Exp(Exp::Call(Box::new(function), exprs))
+            })
+        },
+        Statement::Exp(expr) =>
+            reorder_statement1(expr, |expr| Statement::Exp(expr)),
+        _ => statement,
+    }
+}
+
+fn do_expression(expr : Exp) -> (Statement, Exp) {
+    match expr {
+        Exp::BinOp { op, left, right } =>
+            reorder_expression2(*left, *right, |left, right| Exp::BinOp {
+                op,
+                left : Box::new(left),
+                right : Box::new(right),
+            }),
+        Exp::Mem(expr) =>
+            reorder_expression1(*expr, |expr| Exp::Mem(Box::new(expr))),
+        Exp::ExpSequence(statement, expr) => {
+            let statements1 = do_statement(*statement);
+            let (statements2, expr) = do_expression(*expr);
+            (append(statements1, statements2), expr)
+        },
+        Exp::Call(function, arguments) => {
+            let mut exprs = VecDeque::new();
+            exprs.push_back(*function);
+            exprs.extend(arguments);
+            reorder_expression(exprs, |mut exprs| {
+                let function = exprs.pop_front().expect("pop front");
+                let exprs = exprs.into_iter().collect();
+                Exp::Call(Box::new(function), exprs)
+            })
+        },
+        _ => (Statement::Exp(Exp::Const(0)), expr),
     }
 }
 

@@ -31,6 +31,7 @@ use parser::Parser;
 use semant::SemanticAnalyzer;
 use symbol::{Strings, Symbols};
 use terminal::Terminal;
+use canon::{basic_blocks, linearize, trace_schedule};
 
 fn main() {
     let strings = Rc::new(Strings::new());
@@ -67,7 +68,20 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                 Fragment::Str(_, string) => println!("String {}", string),
             }
         }
-        println!("\n========== ir ============\n");
+        println!("\n========== ir ============\n\n\n");
+        println!("============= ir after canon ========\n");
+        for fragment in fragments {
+            match fragment {
+                Fragment::Function { body, .. } => {
+                    let statements = linearize(body);
+                    let (basic_blocks, done_label) = basic_blocks(statements);
+                    let statements = trace_schedule(basic_blocks, done_label);
+                    println!("{:#?}", statements);
+                },
+                Fragment::Str(_, _) => (),
+            }
+        }
+        println!("\n============= ir after canon ========\n");
     }
     Ok(())
 }
