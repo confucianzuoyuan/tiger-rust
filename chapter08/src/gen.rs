@@ -134,6 +134,7 @@ pub fn function_call<F: Clone + Frame + PartialEq>(
                 None => break,
             }
         }
+        args.push(var);
     }
     Call(Box::new(Name(label.clone())), args)
 }

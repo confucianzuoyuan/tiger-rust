@@ -46,7 +46,7 @@ pub enum Expr {
     Nil,
     Oper {
         left: Box<ExprWithPos>,
-        oper: OperationWithPos,
+        oper: OperatorWithPos,
         right: Box<ExprWithPos>,
     },
     Record {
@@ -101,7 +101,7 @@ pub enum Operator {
     Times,
 }
 
-pub type OperationWithPos = WithPos<Operator>;
+pub type OperatorWithPos = WithPos<Operator>;
 
 #[derive(Clone, Debug)]
 pub struct RecordField {

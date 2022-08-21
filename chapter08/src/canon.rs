@@ -196,23 +196,26 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
                 }
                 new_statements.push(next);
             }
-            Statement::Jump(expr, labels) => match expr {
-                Exp::Name(label) => {
-                    if labels.len() == 1 && labels[0] == label {
-                        if let Some(ref statement) = statements.front() {
-                            if let Statement::Label(ref next_label) = statement {
-                                if next_label == &label {
-                                    current = statements.pop_front();
-                                    continue;
+            Statement::Jump(expr, labels) => {
+                match expr {
+                    Exp::Name(label) => {
+                        if labels.len() == 1 && labels[0] == label {
+                            if let Some(ref statement) = statements.front() {
+                                if let Statement::Label(ref next_label) = statement {
+                                    if next_label == &label {
+                                        // Remove unconditional jumps to next statement.
+                                        current = statements.pop_front();
+                                        continue;
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    new_statements.push(Statement::Jump(Exp::Name(label), labels));
+                        new_statements.push(Statement::Jump(Exp::Name(label), labels));
+                    }
+                    _ => new_statements.push(Statement::Jump(expr, labels)),
                 }
-                _ => new_statements.push(Statement::Jump(expr, labels)),
-            },
+            }
             statement => new_statements.push(statement),
         }
         current = statements.pop_front();
@@ -352,10 +355,10 @@ fn reorder_statement2<F: FnOnce(Exp, Exp) -> Statement>(
 
 fn reorder_statement<F: FnOnce(VecDeque<Exp>) -> Statement>(
     exprs: VecDeque<Exp>,
-    build: F,
+    builder: F,
 ) -> Statement {
     let (statements, exprs) = reorder(exprs);
-    Statement::Sequence(Box::new(statements), Box::new(build(exprs)))
+    Statement::Sequence(Box::new(statements), Box::new(builder(exprs)))
 }
 
 fn reorder_expression1<F: FnOnce(Exp) -> Exp>(expr: Exp, builder: F) -> (Statement, Exp) {
