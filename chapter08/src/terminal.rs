@@ -15,7 +15,7 @@ pub struct Terminal {
 impl Terminal {
     pub fn new() -> Self {
         Self {
-            is_a_tty: stderr_is_a_tty()
+            is_a_tty: stderr_is_a_tty(),
         }
     }
 
@@ -61,9 +61,7 @@ impl Terminal {
 }
 
 fn stderr_is_a_tty() -> bool {
-    unsafe {
-        isatty(stderr().as_raw_fd()) != 0
-    }
+    unsafe { isatty(stderr().as_raw_fd()) != 0 }
 }
 
 extern "C" {

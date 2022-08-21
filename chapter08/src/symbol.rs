@@ -51,7 +51,11 @@ impl<T> Symbols<T> {
     }
 
     pub fn end_scope(&mut self) {
-        for symbol in self.stack.last().expect("Call begin_scope() before end_scope()") {
+        for symbol in self
+            .stack
+            .last()
+            .expect("Call begin_scope() before end_scope()")
+        {
             let bindings = self.table.get_mut(symbol).expect("Symbol not in table");
             bindings.pop();
         }
@@ -61,7 +65,10 @@ impl<T> Symbols<T> {
     pub fn enter(&mut self, symbol: Symbol, data: T) {
         let bindings = self.table.entry(symbol).or_insert_with(Vec::new);
         bindings.push(data);
-        let current_bindings = self.stack.last_mut().expect("Call begin_scope() before enter()");
+        let current_bindings = self
+            .stack
+            .last_mut()
+            .expect("Call begin_scope() before enter()");
         current_bindings.push(symbol);
     }
 
@@ -70,9 +77,7 @@ impl<T> Symbols<T> {
     }
 
     pub fn look_mut(&mut self, symbol: Symbol) -> Option<&mut T> {
-        self.table
-            .get_mut(&symbol)
-            .and_then(|vec| vec.last_mut())
+        self.table.get_mut(&symbol).and_then(|vec| vec.last_mut())
     }
 
     pub fn name(&self, symbol: Symbol) -> String {
@@ -86,12 +91,21 @@ impl<T> Symbols<T> {
     }
 
     pub fn symbol(&mut self, string: &str) -> Symbol {
-        if let Some((&key, _)) = self.strings.strings.borrow().iter().find(|&(_, value)| value == string) {
+        if let Some((&key, _)) = self
+            .strings
+            .strings
+            .borrow()
+            .iter()
+            .find(|&(_, value)| value == string)
+        {
             return key;
         }
 
         let symbol = *self.strings.next_symbol.borrow();
-        self.strings.strings.borrow_mut().insert(symbol, string.to_string());
+        self.strings
+            .strings
+            .borrow_mut()
+            .insert(symbol, string.to_string());
         *self.strings.next_symbol.borrow_mut() += 1;
         symbol
     }

@@ -113,15 +113,9 @@ pub type RecordFieldWithPos = WithPos<RecordField>;
 
 #[derive(Clone, Debug)]
 pub enum Ty {
-    Array {
-        ident: SymbolWithPos,
-    },
-    Name {
-        ident: SymbolWithPos,
-    },
-    Record {
-        fields: Vec<FieldWithPos>,
-    },
+    Array { ident: SymbolWithPos },
+    Name { ident: SymbolWithPos },
+    Record { fields: Vec<FieldWithPos> },
 }
 
 #[derive(Clone, Debug)]

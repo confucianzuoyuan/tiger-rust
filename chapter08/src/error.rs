@@ -3,8 +3,8 @@ use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::result;
 
-use position::Pos;
 use self::Error::*;
+use position::Pos;
 use symbol::Symbols;
 use terminal::Terminal;
 use token::Tok;
@@ -94,79 +94,148 @@ impl Error {
             }
             return Ok(());
         }
-        eprint!("{}{}error: {}", terminal.bold(), terminal.red(), terminal.reset_color());
+        eprint!(
+            "{}{}error: {}",
+            terminal.bold(),
+            terminal.red(),
+            terminal.reset_color()
+        );
         match *self {
             BreakOutsideLoop { pos } => {
-                eprintln!("Break statement used outside of loop{}", terminal.end_bold());
+                eprintln!(
+                    "Break statement used outside of loop{}",
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
-            },
+            }
             CannotIndex { pos, ref typ } => {
-                eprintln!("Cannot index value of type `{}`{}", typ.show(symbols), terminal.end_bold());
+                eprintln!(
+                    "Cannot index value of type `{}`{}",
+                    typ.show(symbols),
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
-            },
+            }
             Cycle { pos } => {
                 eprintln!("Type cycle detected:{}", terminal.end_bold());
                 pos.show(symbols, terminal);
-            },
+            }
             DuplicateParam { ref ident, pos } => {
                 eprintln!("Duplicate param `{}`{}", ident, terminal.end_bold());
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
-            },
+            }
             Eof => eprintln!("end of file"),
-            ExtraField { ref ident, pos, ref struct_name } => {
-                eprintln!("Extra field `{}` in struct of type `{}`{}", ident, struct_name, terminal.end_bold());
+            ExtraField {
+                ref ident,
+                pos,
+                ref struct_name,
+            } => {
+                eprintln!(
+                    "Extra field `{}` in struct of type `{}`{}",
+                    ident,
+                    struct_name,
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
-            },
+            }
             InvalidEscape { ref escape, pos } => {
                 eprintln!("Invalid escape \\{}{}", escape, terminal.end_bold());
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
-            },
-            MissingField { ref ident, pos, ref struct_name } => {
-                eprintln!("Missing field `{}` in struct of type `{}`{}", ident, struct_name, terminal.end_bold());
+            }
+            MissingField {
+                ref ident,
+                pos,
+                ref struct_name,
+            } => {
+                eprintln!(
+                    "Missing field `{}` in struct of type `{}`{}",
+                    ident,
+                    struct_name,
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
-            },
+            }
             Msg(ref string) => eprintln!("{}", string),
             Multi(_) => unreachable!(),
             NotARecord { pos, ref typ } => {
-                eprintln!("Type `{}` is not a struct or a class type{}", typ.show(symbols), terminal.end_bold());
+                eprintln!(
+                    "Type `{}` is not a struct or a class type{}",
+                    typ.show(symbols),
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
-            },
+            }
             Error::RecordType { pos } => {
                 eprintln!("Expecting type when value is nil{}", terminal.end_bold());
                 pos.show(symbols, terminal);
-            },
-            Error::Type { ref expected, pos, ref unexpected } => {
-                eprintln!("Unexpected type {}, expecting {}{}", unexpected.show(symbols), expected.show(symbols), terminal.end_bold());
+            }
+            Error::Type {
+                ref expected,
+                pos,
+                ref unexpected,
+            } => {
+                eprintln!(
+                    "Unexpected type {}, expecting {}{}",
+                    unexpected.show(symbols),
+                    expected.show(symbols),
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
-            },
+            }
             Unclosed { pos, token } => {
                 eprintln!("Unclosed {}{}", token, terminal.end_bold());
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
-            },
-            Undefined { ref ident, ref item, pos } => {
+            }
+            Undefined {
+                ref ident,
+                ref item,
+                pos,
+            } => {
                 eprintln!("Undefined {} `{}`{}", item, ident, terminal.end_bold());
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
-            },
-            UnexpectedField { ref ident, pos, ref struct_name } => {
-                eprintln!("Unexpected field `{}` in struct of type `{}`{}", ident, struct_name, terminal.end_bold());
+            }
+            UnexpectedField {
+                ref ident,
+                pos,
+                ref struct_name,
+            } => {
+                eprintln!(
+                    "Unexpected field `{}` in struct of type `{}`{}",
+                    ident,
+                    struct_name,
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
-            },
-            UnexpectedToken {ref expected, ref pos, ref unexpected} => {
-                eprintln!("Unexpected token {}, expecting {}{}", unexpected, expected, terminal.end_bold());
+            }
+            UnexpectedToken {
+                ref expected,
+                ref pos,
+                ref unexpected,
+            } => {
+                eprintln!(
+                    "Unexpected token {}, expecting {}{}",
+                    unexpected,
+                    expected,
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
-            },
+            }
             UnexpectedType { ref kind, pos } => {
                 eprintln!("Expecting {} type{}", kind, terminal.end_bold());
                 pos.show(symbols, terminal);
-            },
+            }
             UnknownToken { pos, ref start } => {
-                eprintln!("Unexpected start of token `{}`{}", start, terminal.end_bold());
+                eprintln!(
+                    "Unexpected start of token `{}`{}",
+                    start,
+                    terminal.end_bold()
+                );
                 pos.show(symbols, terminal);
                 highlight_line(pos, symbols, terminal)?;
             }
@@ -188,11 +257,13 @@ fn highlight_line(pos: Pos, symbols: &Symbols<()>, terminal: &Terminal) -> io::R
     let size_read = file.read(&mut buffer)?;
     let buffer = &buffer[..size_read];
     let current_pos = min(pos.byte as usize - start as usize, buffer.len());
-    let start_of_line = buffer[..current_pos].iter()
+    let start_of_line = buffer[..current_pos]
+        .iter()
         .rposition(|byte| *byte == b'\n')
         .map(|pos| pos + 1)
         .unwrap_or(0);
-    let end_of_line = buffer[current_pos..].iter()
+    let end_of_line = buffer[current_pos..]
+        .iter()
         .position(|byte| *byte == b'\n')
         .map(|pos| pos + current_pos)
         .unwrap_or_else(|| buffer.len());
@@ -200,11 +271,26 @@ fn highlight_line(pos: Pos, symbols: &Symbols<()>, terminal: &Terminal) -> io::R
     let num_spaces = num_text_size(pos.line as i64);
     let spaces = " ".repeat(num_spaces);
     eprintln!("{}{}{} |", terminal.bold(), terminal.blue(), spaces);
-    eprintln!("{} |{}{} {}", pos.line, terminal.end_bold(), terminal.reset_color(), String::from_utf8_lossy(line));
+    eprintln!(
+        "{} |{}{} {}",
+        pos.line,
+        terminal.end_bold(),
+        terminal.reset_color(),
+        String::from_utf8_lossy(line)
+    );
     let count = min(pos.column as usize, line.len());
     let spaces_before_hint = " ".repeat(count);
     let hint = "^".repeat(pos.length);
-    eprintln!("{}{}{} |{}{}{}{}", terminal.bold(), terminal.blue(), spaces, terminal.red(), spaces_before_hint, hint, terminal.reset_color());
+    eprintln!(
+        "{}{}{} |{}{}{}{}",
+        terminal.bold(),
+        terminal.blue(),
+        spaces,
+        terminal.red(),
+        spaces_before_hint,
+        hint,
+        terminal.reset_color()
+    );
     Ok(())
 }
 

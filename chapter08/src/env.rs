@@ -95,10 +95,7 @@ impl<F: Clone + Frame> Env<F> {
 
     /// 查找符号的逃逸信息
     pub fn look_escape(&self, symbol: Symbol) -> bool {
-        self.escape_env
-            .look(symbol)
-            .expect("escape")
-            .escape
+        self.escape_env.look(symbol).expect("escape").escape
     }
 
     /// 查找符号是哪种类型的别名
@@ -120,7 +117,7 @@ impl<F: Clone + Frame> Env<F> {
         self.type_env.name(symbol)
     }
 
-    pub fn type_symbol(&mut self, string : &str) -> Symbol {
+    pub fn type_symbol(&mut self, string: &str) -> Symbol {
         self.type_env.symbol(string)
     }
 
@@ -139,7 +136,10 @@ pub fn external_functions() -> HashMap<&'static str, (Vec<Type>, Type)> {
     functions.insert("ord", (vec![Type::String], Type::Int));
     functions.insert("chr", (vec![Type::Int], Type::String));
     functions.insert("size", (vec![Type::String], Type::Int));
-    functions.insert("substring", (vec![Type::String, Type::Int, Type::Int], Type::String));
+    functions.insert(
+        "substring",
+        (vec![Type::String, Type::Int, Type::Int], Type::String),
+    );
     functions.insert("concat", (vec![Type::String, Type::String], Type::String));
     functions.insert("not", (vec![Type::Int], Type::Int));
     functions.insert("exit", (vec![Type::Int], Type::Unit));

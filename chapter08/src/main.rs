@@ -21,6 +21,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 
+use canon::{basic_blocks, linearize, trace_schedule};
 use env::Env;
 use error::Error;
 use escape::find_escapes;
@@ -31,7 +32,6 @@ use parser::Parser;
 use semant::SemanticAnalyzer;
 use symbol::{Strings, Symbols};
 use terminal::Terminal;
-use canon::{basic_blocks, linearize, trace_schedule};
 
 fn main() {
     let strings = Rc::new(Strings::new());
@@ -78,7 +78,7 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                     let (basic_blocks, done_label) = basic_blocks(statements);
                     let statements = trace_schedule(basic_blocks, done_label);
                     println!("{:#?}", statements);
-                },
+                }
                 Fragment::Str(_, _) => (),
             }
         }

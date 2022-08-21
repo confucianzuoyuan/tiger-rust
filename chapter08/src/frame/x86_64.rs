@@ -2,14 +2,7 @@ use std::collections::HashMap;
 use std::sync::Once;
 
 use ir::BinOp::Plus;
-use ir::Exp:: {
-    self,
-    BinOp,
-    Call,
-    Const,
-    Mem,
-    Name,
-};
+use ir::Exp::{self, BinOp, Call, Const, Mem, Name};
 
 use super::Frame;
 use temp::{Label, Temp};
@@ -42,24 +35,24 @@ pub enum Access {
 }
 
 /// "rbp"是保存帧指针的寄存器
-static mut RBP : Option<Temp> = None;
+static mut RBP: Option<Temp> = None;
 /// "rsp"是保存栈指针的寄存器
-static mut RSP : Option<Temp> = None;
+static mut RSP: Option<Temp> = None;
 /// "rax"是保存返回值的寄存器
-static mut RAX : Option<Temp> = None;
-static mut RBX : Option<Temp> = None;
-static mut RCX : Option<Temp> = None;
-static mut RDX : Option<Temp> = None;
-static mut RSI : Option<Temp> = None;
-static mut RDI : Option<Temp> = None;
-static mut R8  : Option<Temp> = None;
-static mut R9  : Option<Temp> = None;
-static mut R10 : Option<Temp> = None;
-static mut R11 : Option<Temp> = None;
-static mut R12 : Option<Temp> = None;
-static mut R13 : Option<Temp> = None;
-static mut R14 : Option<Temp> = None;
-static mut R15 : Option<Temp> = None;
+static mut RAX: Option<Temp> = None;
+static mut RBX: Option<Temp> = None;
+static mut RCX: Option<Temp> = None;
+static mut RDX: Option<Temp> = None;
+static mut RSI: Option<Temp> = None;
+static mut RDI: Option<Temp> = None;
+static mut R8: Option<Temp> = None;
+static mut R9: Option<Temp> = None;
+static mut R10: Option<Temp> = None;
+static mut R11: Option<Temp> = None;
+static mut R12: Option<Temp> = None;
+static mut R13: Option<Temp> = None;
+static mut R14: Option<Temp> = None;
+static mut R15: Option<Temp> = None;
 static ONCE: Once = Once::new();
 
 fn initialize() {
@@ -72,8 +65,8 @@ fn initialize() {
         RDX = Some(Temp::new());
         RDI = Some(Temp::new());
         RSI = Some(Temp::new());
-        R8  = Some(Temp::new());
-        R9  = Some(Temp::new());
+        R8 = Some(Temp::new());
+        R9 = Some(Temp::new());
         R10 = Some(Temp::new());
         R11 = Some(Temp::new());
         R12 = Some(Temp::new());
@@ -112,18 +105,12 @@ impl X86_64 {
     ///   - rax：保存返回值的寄存器
     ///   - rsp：保存栈指针的寄存器
     fn special_registers() -> Vec<Temp> {
-        vec![
-            Self::rax(),
-            Self::rsp(),
-        ]
+        vec![Self::rax(), Self::rsp()]
     }
 
     /// 调用者保存的寄存器
     fn caller_saved_registers() -> Vec<Temp> {
-        vec![
-            Self::r10(),
-            Self::r11(),
-        ]
+        vec![Self::r10(), Self::r11()]
     }
 
     pub fn rsp() -> Temp {
@@ -211,7 +198,7 @@ impl X86_64 {
 impl Frame for X86_64 {
     type Access = Access;
 
-    const WORD_SIZE : i64 = 8;
+    const WORD_SIZE: i64 = 8;
 
     fn registers() -> Vec<Temp> {
         let mut registers = Self::arg_registers();
@@ -247,7 +234,7 @@ impl Frame for X86_64 {
         map
     }
 
-    fn special_name(temp : Temp) -> Option<&'static str> {
+    fn special_name(temp: Temp) -> Option<&'static str> {
         Self::temp_map().get(&temp).map(|&str| str)
     }
 
@@ -295,22 +282,18 @@ impl Frame for X86_64 {
         }
     }
 
-    fn exp(&self, access : Self::Access, stack_frame : Exp) -> Exp {
+    fn exp(&self, access: Self::Access, stack_frame: Exp) -> Exp {
         match access {
-            InFrame(pos) => {
-                Mem(Box::new(BinOp {
-                    op    : Plus,
-                    left  : Box::new(stack_frame),
-                    right : Box::new(Const(pos)),
-                }))
-            },
-            InReg(reg) => {
-                Exp::Temp(reg)
-            },
+            InFrame(pos) => Mem(Box::new(BinOp {
+                op: Plus,
+                left: Box::new(stack_frame),
+                right: Box::new(Const(pos)),
+            })),
+            InReg(reg) => Exp::Temp(reg),
         }
     }
 
-    fn external_call(name : &str, arguments : Vec<Exp>) -> Exp {
+    fn external_call(name: &str, arguments: Vec<Exp>) -> Exp {
         Call(Box::new(Name(Label::with_name(name))), arguments)
     }
 }

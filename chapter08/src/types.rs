@@ -1,5 +1,5 @@
 use self::Type::*;
-use symbol::{Symbol, Symbols, SymbolWithPos};
+use symbol::{Symbol, SymbolWithPos, Symbols};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
@@ -20,7 +20,7 @@ impl Type {
         match *self {
             Array(ref typ, _) => {
                 format!("[{}]", typ.show(symbols))
-            },
+            }
             Int => "int".to_string(),
             Name(_, ref typ) => {
                 if let Some(typ) = typ {
@@ -28,7 +28,7 @@ impl Type {
                 } else {
                     "unresolved type".to_string()
                 }
-            },
+            }
             Nil => "nil".to_string(),
             Record(name, _, _) => format!("struct {}", symbols.name(name)),
             String => "string".to_string(),
@@ -45,9 +45,7 @@ pub struct Unique(u64);
 
 impl Unique {
     pub fn new() -> Self {
-        let value = unsafe {
-            UNIQUE_COUNT
-        };
+        let value = unsafe { UNIQUE_COUNT };
         unsafe {
             UNIQUE_COUNT += 1;
         }

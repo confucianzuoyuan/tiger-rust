@@ -4,39 +4,12 @@ use std::rc::Rc;
 use ast::Operator;
 use frame::{Fragment, Frame};
 use ir;
-use ir::BinOp::{
-    And,
-    Div,
-    Minus,
-    Mul,
-    Or,
-    Plus,
-};
-use ir::Exp::{
-    self,
-    BinOp,
-    Call,
-    Const,
-    ExpSequence,
-    Mem,
-    Name,
-};
+use ir::BinOp::{And, Div, Minus, Mul, Or, Plus};
+use ir::Exp::{self, BinOp, Call, Const, ExpSequence, Mem, Name};
 use ir::RelationalOp::{
-    self,
-    Equal,
-    NotEqual,
-    GreaterThan,
-    GreaterOrEqual,
-    LesserThan,
-    LesserOrEqual,
+    self, Equal, GreaterOrEqual, GreaterThan, LesserOrEqual, LesserThan, NotEqual,
 };
-use ir::Statement::{
-    self,
-    CondJump,
-    Jump,
-    Move,
-    Sequence,
-};
+use ir::Statement::{self, CondJump, Jump, Move, Sequence};
 use temp::{Label, Temp};
 
 #[allow(type_alias_bounds)]
@@ -90,60 +63,55 @@ impl<F: Frame> Level<F> {
 
 pub fn alloc_local<F: Frame>(level: &Level<F>, escape: bool) -> Access<F> {
     let level = level.clone();
-    let frame_local =
-        level.current
-             .borrow_mut()
-             .alloc_local(escape);
+    let frame_local = level.current.borrow_mut().alloc_local(escape);
     (level, frame_local)
 }
 
 /// array[i] => *(&array + 8 * i)
-pub fn array_subscript<F : Frame>(var : Exp, subscript : Exp) -> Exp {
+pub fn array_subscript<F: Frame>(var: Exp, subscript: Exp) -> Exp {
     Mem(Box::new(BinOp {
-        op    : Plus,
-        left  : Box::new(var),
-        right : Box::new(BinOp {
-            op    : Mul,
-            left  : Box::new(subscript),
-            right : Box::new(Const(F::WORD_SIZE)),
+        op: Plus,
+        left: Box::new(var),
+        right: Box::new(BinOp {
+            op: Mul,
+            left: Box::new(subscript),
+            right: Box::new(Const(F::WORD_SIZE)),
         }),
     }))
 }
 
-pub fn binary_oper(op : Operator, left : Exp, right : Exp) -> Exp {
+pub fn binary_oper(op: Operator, left: Exp, right: Exp) -> Exp {
     BinOp {
-        op    : to_ir_op(op),
-        left  : Box::new(left),
-        right : Box::new(right),
+        op: to_ir_op(op),
+        left: Box::new(left),
+        right: Box::new(right),
     }
 }
 
 /// r := { a : 1, b : 2 }
 /// r.b => *(&r + 1 * 8)
-pub fn field_access<F : Frame>(var : Exp, field_index : usize) -> Exp {
+pub fn field_access<F: Frame>(var: Exp, field_index: usize) -> Exp {
     Mem(Box::new(BinOp {
-        op    : Plus,
-        left  : Box::new(var),
-        right : Box::new(Const(F::WORD_SIZE * field_index as i64)),
+        op: Plus,
+        left: Box::new(var),
+        right: Box::new(Const(F::WORD_SIZE * field_index as i64)),
     }))
 }
 
-pub fn function_call<F : Clone + Frame + PartialEq>(
-    label         : &Label,
-    mut args      : Vec<Exp>,
-    parent_level  : &Level<F>,
-    current_level : &Level<F>,
+pub fn function_call<F: Clone + Frame + PartialEq>(
+    label: &Label,
+    mut args: Vec<Exp>,
+    parent_level: &Level<F>,
+    current_level: &Level<F>,
 ) -> Exp {
     if *current_level == *parent_level {
         // 针对递归调用，我们仅仅简单的传递当前静态链，
         // 当前静态链表示父函数的栈帧
         let frame = current_level.current.borrow();
-        args.push(
-            frame.exp(
-                frame.formals().last().expect("static link").clone(),
-                Exp::Temp(F::fp())
-            )
-        );
+        args.push(frame.exp(
+            frame.formals().last().expect("static link").clone(),
+            Exp::Temp(F::fp()),
+        ));
     } else if current_level.parent.as_ref().map(|level| &**level) == Some(parent_level) {
         // 当调用一个定义在当前帧中的函数时，
         // 将当前帧指针传递给静态链就行了
@@ -160,10 +128,7 @@ pub fn function_call<F : Clone + Frame + PartialEq>(
                 }
             }
             let frame = function_level.current.borrow();
-            var = frame.exp(
-                frame.formals().last().expect("static link").clone(),
-                var,
-            );
+            var = frame.exp(frame.formals().last().expect("static link").clone(), var);
             match function_level.parent {
                 Some(ref parent) => function_level = parent,
                 None => break,
@@ -174,7 +139,7 @@ pub fn function_call<F : Clone + Frame + PartialEq>(
 }
 
 /// jump label
-pub fn goto(label : Label) -> Exp {
+pub fn goto(label: Label) -> Exp {
     ExpSequence(
         Box::new(Jump(Name(label.clone()), vec![label])),
         Box::new(unit()),
@@ -190,29 +155,26 @@ pub fn goto(label : Label) -> Exp {
 ///   move result e3
 /// end_label
 /// result
-pub fn if_expression<F : Clone + Frame>(
-    test_expr : Exp,
-    if_expr   : Exp,
-    else_expr : Option<Exp>,
-    level     : &Level<F>
+pub fn if_expression<F: Clone + Frame>(
+    test_expr: Exp,
+    if_expr: Exp,
+    else_expr: Option<Exp>,
+    level: &Level<F>,
 ) -> Exp {
     let result = alloc_local(level, false);
     let true_label = Label::new();
     let false_label = Label::new();
     let end_label = Label::new();
     let frame = level.current.borrow();
-    let result = frame.exp(
-        result.1,
-        Exp::Temp(F::fp()),
-    );
+    let result = frame.exp(result.1, Exp::Temp(F::fp()));
     ExpSequence(
         Box::new(Sequence(
             Box::new(CondJump {
-                op          : Equal,
-                left        : test_expr,
-                right       : Const(1),
-                true_label  : true_label.clone(),
-                false_label : false_label.clone(),
+                op: Equal,
+                left: test_expr,
+                right: Const(1),
+                true_label: true_label.clone(),
+                false_label: false_label.clone(),
             }),
             Box::new(Sequence(
                 Box::new(Statement::Label(true_label)),
@@ -225,17 +187,17 @@ pub fn if_expression<F : Clone + Frame>(
                             Box::new(Sequence(
                                 Box::new(Move(result.clone(), else_expr.unwrap_or(unit()))),
                                 Box::new(Statement::Label(end_label)),
-                            ))
-                        ))
-                    ))
-                ))
-            ))
+                            )),
+                        )),
+                    )),
+                )),
+            )),
         )),
-        Box::new(result)
+        Box::new(result),
     )
 }
 
-pub fn num(number : i64) -> Exp {
+pub fn num(number: i64) -> Exp {
     Const(number)
 }
 
@@ -245,7 +207,7 @@ pub fn num(number : i64) -> Exp {
 /// move result (malloc 2 * 8)
 /// move *result 1
 /// move *(result + 1 * 8) 2
-pub fn record_create<F : Frame>(fields : Vec<Exp>) -> Exp {
+pub fn record_create<F: Frame>(fields: Vec<Exp>) -> Exp {
     if fields.is_empty() {
         return unit();
     }
@@ -254,7 +216,7 @@ pub fn record_create<F : Frame>(fields : Vec<Exp>) -> Exp {
     let mut sequence = Sequence(
         Box::new(Move(
             result.clone(),
-            F::external_call("malloc", vec![Const(fields.len() as i64 * F::WORD_SIZE)])
+            F::external_call("malloc", vec![Const(fields.len() as i64 * F::WORD_SIZE)]),
         )),
         Box::new(Move(
             Mem(Box::new(result.clone())),
@@ -267,27 +229,24 @@ pub fn record_create<F : Frame>(fields : Vec<Exp>) -> Exp {
             Box::new(sequence),
             Box::new(Move(
                 Mem(Box::new(BinOp {
-                    op    : Plus,
-                    left  : Box::new(result.clone()),
-                    right : Box::new(Const(index as i64 * F::WORD_SIZE)),
+                    op: Plus,
+                    left: Box::new(result.clone()),
+                    right: Box::new(Const(index as i64 * F::WORD_SIZE)),
                 })),
                 field,
             )),
         );
     }
-    ExpSequence(
-        Box::new(sequence),
-        Box::new(result),
-    )
+    ExpSequence(Box::new(sequence), Box::new(result))
 }
 
 /// &&和||由于存在短路操作
 /// 所以转换成if-then-else结构
-pub fn relational_oper<F : Clone + Frame>(
-    op : Operator,
-    left : Exp,
-    right : Exp,
-    level : &Level<F>,
+pub fn relational_oper<F: Clone + Frame>(
+    op: Operator,
+    left: Exp,
+    right: Exp,
+    level: &Level<F>,
 ) -> Exp {
     let result = alloc_local(level, false);
     let true_label = Label::new();
@@ -315,7 +274,7 @@ pub fn relational_oper<F : Clone + Frame>(
                             Box::new(Sequence(
                                 Box::new(Move(result.clone(), Const(0))),
                                 Box::new(Statement::Label(end_label)),
-                            ))
+                            )),
                         )),
                     )),
                 )),
@@ -329,10 +288,7 @@ pub fn relational_oper<F : Clone + Frame>(
 /// 找到变量所在的栈帧的fp
 /// 然后根据变量是否逃逸
 /// 生成访问变量的IR
-pub fn simple_var<F : Clone + Frame + PartialEq>(
-    access : Access<F>,
-    level  : &Level<F>,
-) -> Exp {
+pub fn simple_var<F: Clone + Frame + PartialEq>(access: Access<F>, level: &Level<F>) -> Exp {
     let mut function_level = level;
     let var_level = access.0;
     let frame = level.current.borrow();
@@ -340,7 +296,13 @@ pub fn simple_var<F : Clone + Frame + PartialEq>(
     // Add the offset of each parent frames (static link).
     while function_level.current != var_level.current {
         var = frame.exp(
-            function_level.current.borrow().formals().last().expect("static link").clone(),
+            function_level
+                .current
+                .borrow()
+                .formals()
+                .last()
+                .expect("static link")
+                .clone(),
             var,
         );
         function_level = function_level
@@ -377,16 +339,13 @@ pub fn unit() -> Exp {
 /// move t value
 /// or
 /// move *(fp + offset) value
-pub fn var_dec<F : Frame>(access : &Access<F>, value : Exp) -> Statement {
+pub fn var_dec<F: Frame>(access: &Access<F>, value: Exp) -> Statement {
     let var_level = &access.0;
     let frame = var_level.current.borrow();
-    Move(
-        frame.exp(access.1.clone(), Exp::Temp(F::fp())),
-        value,
-    )
+    Move(frame.exp(access.1.clone(), Exp::Temp(F::fp())), value)
 }
 
-pub fn var_decs(variables : Vec<Statement>, body : Exp) -> Exp {
+pub fn var_decs(variables: Vec<Statement>, body: Exp) -> Exp {
     if variables.is_empty() {
         return body;
     }
@@ -398,20 +357,11 @@ pub fn var_decs(variables : Vec<Statement>, body : Exp) -> Exp {
         return ExpSequence(Box::new(var1), Box::new(body));
     }
     let var2 = iter.next().expect("second variable declaration");
-    let mut statements = Sequence(
-        Box::new(var1),
-        Box::new(var2),
-    );
+    let mut statements = Sequence(Box::new(var1), Box::new(var2));
     for var in iter {
-        statements = Sequence(
-            Box::new(statements),
-            Box::new(var),
-        );
+        statements = Sequence(Box::new(statements), Box::new(var));
     }
-    ExpSequence(
-        Box::new(statements),
-        Box::new(body),
-    )
+    ExpSequence(Box::new(statements), Box::new(body))
 }
 
 /// while循环翻译成IR
@@ -475,15 +425,13 @@ fn to_ir_rel_op(op: Operator) -> RelationalOp {
     }
 }
 
-pub struct Gen<F : Frame> {
-    fragments : Vec<Fragment<F>>,
+pub struct Gen<F: Frame> {
+    fragments: Vec<Fragment<F>>,
 }
 
-impl<F : Frame> Gen<F> {
+impl<F: Frame> Gen<F> {
     pub fn new() -> Self {
-        Self {
-            fragments : vec![],
-        }
+        Self { fragments: vec![] }
     }
 
     pub fn get_result(self) -> Vec<Fragment<F>> {
@@ -491,11 +439,8 @@ impl<F : Frame> Gen<F> {
     }
 
     /// move rax body
-    pub fn proc_entry_exit(&mut self, level : &Level<F>, body : Exp) {
-        let body = Move(
-            Exp::Temp(F::return_value()),
-            body,
-        );
+    pub fn proc_entry_exit(&mut self, level: &Level<F>, body: Exp) {
+        let body = Move(Exp::Temp(F::return_value()), body);
         self.fragments.push(Fragment::Function {
             body,
             frame: level.current.clone(),
@@ -506,12 +451,9 @@ impl<F : Frame> Gen<F> {
     /// "aaa"
     /// =>
     /// label : "aaa"
-    pub fn string_literal(&mut self, string : String) -> Exp {
+    pub fn string_literal(&mut self, string: String) -> Exp {
         let label = Label::new();
-        self.fragments.push(Fragment::Str(
-            label.clone(),
-            string,
-        ));
+        self.fragments.push(Fragment::Str(label.clone(), string));
         Name(label)
     }
 }

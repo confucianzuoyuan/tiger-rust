@@ -8,10 +8,10 @@ use temp::{Label, Temp};
 
 pub mod x86_64;
 
-pub enum Fragment<F : Frame> {
+pub enum Fragment<F: Frame> {
     Function {
-        body  : Statement,
-        frame : Rc<RefCell<F>>,
+        body: Statement,
+        frame: Rc<RefCell<F>>,
     },
     Str(Label, String),
 }
@@ -22,7 +22,7 @@ pub trait Frame: Clone {
     type Access: Clone + Debug;
 
     /// 指针的大小
-    const WORD_SIZE : i64;
+    const WORD_SIZE: i64;
 
     /// 寄存器列表
     fn registers() -> Vec<Temp>;
@@ -32,7 +32,7 @@ pub trait Frame: Clone {
 
     fn temp_map() -> HashMap<Temp, &'static str>;
 
-    fn special_name(temp : Temp) -> Option<&'static str>;
+    fn special_name(temp: Temp) -> Option<&'static str>;
 
     /// 返回保存帧指针的寄存器
     fn fp() -> Temp;
@@ -57,7 +57,7 @@ pub trait Frame: Clone {
     ///   - 非逃逸的：可以放在寄存器中
     fn alloc_local(&mut self, escape: bool) -> Self::Access;
 
-    fn exp(&self, access : Self::Access, stack_frame : Exp) -> Exp;
+    fn exp(&self, access: Self::Access, stack_frame: Exp) -> Exp;
 
-    fn external_call(name : &str, arguments : Vec<Exp>) -> Exp;
+    fn external_call(name: &str, arguments: Vec<Exp>) -> Exp;
 }

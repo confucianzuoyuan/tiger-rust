@@ -14,9 +14,7 @@ impl Temp {
         static mut COUNTER: u32 = 0;
         unsafe {
             COUNTER += 1;
-            Self {
-                num: COUNTER,
-            }
+            Self { num: COUNTER }
         }
     }
 }
