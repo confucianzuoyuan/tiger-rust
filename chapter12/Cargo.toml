@@ -1,0 +1,8 @@
+[package]
+name = "chapter12"
+version = "0.1.0"
+authors = ["Yuan Zuo"]
+
+[lib]
+name = "runtime"
+crate-type = ["staticlib"]
