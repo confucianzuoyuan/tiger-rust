@@ -1,0 +1,6 @@
+target
+tests/*
+!tests/**/
+!tests/*.*
+tests/*.o
+tests/*.s

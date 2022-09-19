@@ -1,15 +1,63 @@
+/*
+ * Copyright (c) 2018-2019 Boucher, Antoni <bouanto@zoho.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use ast::Operator;
 use frame::{Fragment, Frame};
 use ir;
-use ir::BinOp::{And, Div, Minus, Mul, Or, Plus};
-use ir::Exp::{self, BinOp, Call, Const, ExpSequence, Mem, Name};
-use ir::RelationalOp::{
-    self, Equal, GreaterOrEqual, GreaterThan, LesserOrEqual, LesserThan, NotEqual,
+use ir::BinOp::{
+    And,
+    Div,
+    Minus,
+    Mul,
+    Or,
+    Plus,
 };
-use ir::Statement::{self, CondJump, Jump, Move, Sequence};
+use ir::Exp::{
+    self,
+    BinOp,
+    Call,
+    Const,
+    ExpSequence,
+    Mem,
+    Name,
+};
+use ir::RelationalOp::{
+    self,
+    Equal,
+    NotEqual,
+    GreaterThan,
+    GreaterOrEqual,
+    LesserThan,
+    LesserOrEqual,
+};
+use ir::Statement::{
+    self,
+    CondJump,
+    Jump,
+    Move,
+    Sequence,
+};
 use temp::{Label, Temp};
 
 #[allow(type_alias_bounds)]
@@ -44,7 +92,7 @@ pub fn outermost<F: Frame>() -> Level<F> {
 
 impl<F: Frame> Level<F> {
     pub fn new(parent: &Level<F>, name: Label, mut formals: Vec<bool>) -> Level<F> {
-        formals.push(true);
+        formals.push(true); // for the static link.
         Level {
             current: Rc::new(RefCell::new(F::new(name, formals))),
             parent: Some(Box::new(parent.clone())),
@@ -52,10 +100,7 @@ impl<F: Frame> Level<F> {
     }
 
     pub fn formals(&self) -> Vec<Access<F>> {
-        self.current
-            .borrow()
-            .formals()
-            .iter()
+        self.current.borrow().formals().iter()
             .map(|access| (self.clone(), access.clone()))
             .collect()
     }
@@ -67,9 +112,6 @@ pub fn alloc_local<F: Frame>(level: &Level<F>, escape: bool) -> Access<F> {
     (level, frame_local)
 }
 
-/// ```text
-/// array[i] => *(&array + 8 * i)
-/// ```
 pub fn array_subscript<F: Frame>(var: Exp, subscript: Exp) -> Exp {
     Mem(Box::new(BinOp {
         op: Plus,
@@ -90,8 +132,6 @@ pub fn binary_oper(op: Operator, left: Exp, right: Exp) -> Exp {
     }
 }
 
-/// r := { a : 1, b : 2 }
-/// r.b => *(&r + 1 * 8)
 pub fn field_access<F: Frame>(var: Exp, field_index: usize) -> Exp {
     Mem(Box::new(BinOp {
         op: Plus,
@@ -100,27 +140,22 @@ pub fn field_access<F: Frame>(var: Exp, field_index: usize) -> Exp {
     }))
 }
 
-pub fn function_call<F: Clone + Frame + PartialEq>(
-    label: &Label,
-    mut args: Vec<Exp>,
-    parent_level: &Level<F>,
-    current_level: &Level<F>,
-) -> Exp {
+pub fn function_call<F: Clone + Frame + PartialEq>(label: &Label, mut args: Vec<Exp>, parent_level: &Level<F>,
+    current_level: &Level<F>) -> Exp
+{
     if *current_level == *parent_level {
-        // 针对递归调用，我们仅仅简单的传递当前静态链，
-        // 当前静态链表示父函数的栈帧
+        // For a recursive call, we simply pass the current static link, which represents the stack
+        // frame of the parent function.
         let frame = current_level.current.borrow();
-        args.push(frame.exp(
-            frame.formals().last().expect("static link").clone(),
-            Exp::Temp(F::fp()),
-        ));
-    } else if current_level.parent.as_ref().map(|level| &**level) == Some(parent_level) {
-        // 当调用一个定义在当前帧中的函数时，
-        // 将当前帧指针传递给静态链就行了
+        args.push(frame.exp(frame.formals().last().expect("static link").clone(), Exp::Temp(F::fp())));
+    }
+    else if current_level.parent.as_ref().map(|level| &**level) == Some(parent_level) {
+        // When calling a function defined in the current frame, simply pass the current frame
+        // pointer for the static link.
         args.push(Exp::Temp(F::fp()));
-    } else {
-        // 当调用一个定义在父栈帧中的函数时，
-        // 遍历静态链，找到函数的层
+    }
+    else {
+        // When calling a function defined in a parent frame, go up throught the static links.
         let mut function_level = parent_level;
         let mut var = Exp::Temp(F::fp());
         loop {
@@ -141,7 +176,6 @@ pub fn function_call<F: Clone + Frame + PartialEq>(
     Call(Box::new(Name(label.clone())), args)
 }
 
-/// jump label
 pub fn goto(label: Label) -> Exp {
     ExpSequence(
         Box::new(Jump(Name(label.clone()), vec![label])),
@@ -149,21 +183,7 @@ pub fn goto(label: Label) -> Exp {
     )
 }
 
-/// if e1 then e2 else e3
-/// cjump eq e1 1 t f
-/// t:
-///   move result e2
-///   jump end_label
-/// f:
-///   move result e3
-/// end_label
-/// result
-pub fn if_expression<F: Clone + Frame>(
-    test_expr: Exp,
-    if_expr: Exp,
-    else_expr: Option<Exp>,
-    level: &Level<F>,
-) -> Exp {
+pub fn if_expression<F: Clone + Frame>(test_expr: Exp, if_expr: Exp, else_expr: Option<Exp>, level: &Level<F>) -> Exp {
     let result = alloc_local(level, false);
     let true_label = Label::new();
     let false_label = Label::new();
@@ -204,12 +224,6 @@ pub fn num(number: i64) -> Exp {
     Const(number)
 }
 
-/// var a := {} => Const(0)
-/// var b := { i : 1, j : 2}
-/// =>
-/// move result (malloc 2 * 8)
-/// move *result 1
-/// move *(result + 1 * 8) 2
 pub fn record_create<F: Frame>(fields: Vec<Exp>) -> Exp {
     if fields.is_empty() {
         return unit();
@@ -217,40 +231,27 @@ pub fn record_create<F: Frame>(fields: Vec<Exp>) -> Exp {
     let result = Exp::Temp(Temp::new());
     let mut fields = fields.into_iter();
     let mut sequence = Sequence(
-        Box::new(Move(
-            result.clone(),
-            F::external_call("malloc", vec![Const(fields.len() as i64 * F::WORD_SIZE)]),
-        )),
-        Box::new(Move(
-            Mem(Box::new(result.clone())),
-            fields.next().expect("record first field"),
-        )),
+        Box::new(Move(result.clone(), F::external_call("malloc", vec![Const(fields.len() as i64 * F::WORD_SIZE)]))),
+        Box::new(Move(Mem(Box::new(result.clone())), fields.next().expect("record first field"))),
     );
     for (index, field) in fields.enumerate() {
-        let index = index + 1;
+        let index = index + 1; // Plus one because the first field was emitted before the loop.
         sequence = Sequence(
             Box::new(sequence),
-            Box::new(Move(
-                Mem(Box::new(BinOp {
-                    op: Plus,
-                    left: Box::new(result.clone()),
-                    right: Box::new(Const(index as i64 * F::WORD_SIZE)),
-                })),
-                field,
-            )),
+            Box::new(Move(Mem(Box::new(BinOp {
+                op: Plus,
+                left: Box::new(result.clone()),
+                right: Box::new(Const(index as i64 * F::WORD_SIZE)),
+            })), field))
         );
     }
-    ExpSequence(Box::new(sequence), Box::new(result))
+    ExpSequence(
+        Box::new(sequence),
+        Box::new(result),
+    )
 }
 
-/// &&和||由于存在短路操作
-/// 所以转换成if-then-else结构
-pub fn relational_oper<F: Clone + Frame>(
-    op: Operator,
-    left: Exp,
-    right: Exp,
-    level: &Level<F>,
-) -> Exp {
+pub fn relational_oper<F: Clone + Frame>(op: Operator, left: Exp, right: Exp, level: &Level<F>) -> Exp {
     let result = alloc_local(level, false);
     let true_label = Label::new();
     let false_label = Label::new();
@@ -277,7 +278,7 @@ pub fn relational_oper<F: Clone + Frame>(
                             Box::new(Sequence(
                                 Box::new(Move(result.clone(), Const(0))),
                                 Box::new(Statement::Label(end_label)),
-                            )),
+                            ))
                         )),
                     )),
                 )),
@@ -287,10 +288,6 @@ pub fn relational_oper<F: Clone + Frame>(
     )
 }
 
-/// 访问单个变量
-/// 找到变量所在的栈帧的fp
-/// 然后根据变量是否逃逸
-/// 生成访问变量的IR
 pub fn simple_var<F: Clone + Frame + PartialEq>(access: Access<F>, level: &Level<F>) -> Exp {
     let mut function_level = level;
     let var_level = access.0;
@@ -298,28 +295,13 @@ pub fn simple_var<F: Clone + Frame + PartialEq>(access: Access<F>, level: &Level
     let mut var = Exp::Temp(F::fp());
     // Add the offset of each parent frames (static link).
     while function_level.current != var_level.current {
-        var = frame.exp(
-            function_level
-                .current
-                .borrow()
-                .formals()
-                .last()
-                .expect("static link")
-                .clone(),
-            var,
-        );
-        function_level = function_level
-            .parent
-            .as_ref()
-            .unwrap_or_else(|| panic!("function level should have a parent"));
+        var = frame.exp(function_level.current.borrow().formals().last().expect("static link").clone(), var);
+        function_level = function_level.parent.as_ref().unwrap_or_else(|| panic!("function level should have a parent"));
     }
     var = frame.exp(access.1, var);
     var
 }
 
-/// "aaa" != "bbb"
-/// =>
-/// sub 1 (stringEqual "aaa" "bbb")
 pub fn string_equality<F: Frame>(oper: Operator, left: Exp, right: Exp) -> Exp {
     let exp = F::external_call("stringEqual", vec![left, right]);
     match oper {
@@ -337,11 +319,6 @@ pub fn unit() -> Exp {
     Const(0)
 }
 
-/// var a := 1
-/// =>
-/// move t value
-/// or
-/// move *(fp + offset) value
 pub fn var_dec<F: Frame>(access: &Access<F>, value: Exp) -> Statement {
     let var_level = &access.0;
     let frame = var_level.current.borrow();
@@ -362,18 +339,14 @@ pub fn var_decs(variables: Vec<Statement>, body: Exp) -> Exp {
     let var2 = iter.next().expect("second variable declaration");
     let mut statements = Sequence(Box::new(var1), Box::new(var2));
     for var in iter {
-        statements = Sequence(Box::new(statements), Box::new(var));
+        statements = Sequence(
+            Box::new(statements),
+            Box::new(var),
+        );
     }
     ExpSequence(Box::new(statements), Box::new(body))
 }
 
-/// while循环翻译成IR
-/// test_label:
-///   cjump neq test_expr 1 done_label after_check_label
-/// after_check_label:
-///   body
-///   jump test_label
-/// done_label:
 pub fn while_loop(done_label: &Label, test_expr: Exp, body: Exp) -> Exp {
     let test_label = Label::new();
     let after_check_label = Label::new();
@@ -432,16 +405,17 @@ pub struct Gen<F: Frame> {
     fragments: Vec<Fragment<F>>,
 }
 
-impl<F: Frame> Gen<F> {
+impl<F:Frame> Gen<F> {
     pub fn new() -> Self {
-        Self { fragments: vec![] }
+        Self {
+            fragments: vec![],
+        }
     }
 
     pub fn get_result(self) -> Vec<Fragment<F>> {
         self.fragments
     }
 
-    /// move rax body
     pub fn proc_entry_exit(&mut self, level: &Level<F>, body: Exp) {
         let body = Move(Exp::Temp(F::return_value()), body);
         self.fragments.push(Fragment::Function {
@@ -450,10 +424,6 @@ impl<F: Frame> Gen<F> {
         });
     }
 
-    /// 字符串字面量
-    /// "aaa"
-    /// =>
-    /// label : "aaa"
     pub fn string_literal(&mut self, string: String) -> Exp {
         let label = Label::new();
         self.fragments.push(Fragment::Str(label.clone(), string));
