@@ -12,14 +12,23 @@ use temp::Temp;
 pub type Allocation = BTreeMap<Temp, Temp>; // Map temporaries to temporaries pre-assigned to machine registers.
 
 pub fn alloc<F: Frame>(instructions: Vec<Instruction>, frame: &mut F) -> Vec<Instruction> {
+    // temp_map是提前着好色的临时变量，例如`t1`着色为`RBP`。
     let precolored = F::temp_map();
+    // 将从`t17`开始的临时变量，添加到initial数组中，准备着色。
     let mut initial = vec![];
     for instruction in &instructions {
         match instruction {
             Instruction::Label { .. } => (),
-            Instruction::Move { ref destination, ref source, .. } |
-                Instruction::Operation { ref destination, ref source, .. } =>
-            {
+            Instruction::Move {
+                ref destination,
+                ref source,
+                ..
+            }
+            | Instruction::Operation {
+                ref destination,
+                ref source,
+                ..
+            } => {
                 for destination in destination {
                     if !precolored.contains_key(destination) {
                         initial.push(destination.clone());
@@ -30,35 +39,58 @@ pub fn alloc<F: Frame>(instructions: Vec<Instruction>, frame: &mut F) -> Vec<Ins
                         initial.push(source.clone());
                     }
                 }
-            },
+            }
         }
     }
 
     allocate(instructions, initial, frame)
 }
 
-fn allocate<F: Frame>(instructions: Vec<Instruction>, initial: Vec<Temp>, frame: &mut F) -> Vec<Instruction> {
+fn allocate<F: Frame>(
+    instructions: Vec<Instruction>,
+    initial: Vec<Temp>,
+    frame: &mut F,
+) -> Vec<Instruction> {
+    // 使用伪指令序列构建控制流图。
     let flow_graph = instructions_to_graph(&instructions);
+    // 根据控制流图计算出冲突图。
     let interference_graph = interference_graph(flow_graph);
-    let (allocation, spills, colored_nodes, coalesced_nodes) = color::<F>(interference_graph, initial);
+    // 为`initial`数组中的临时变量着色。
+    let (allocation, spills, colored_nodes, coalesced_nodes) =
+        color::<F>(interference_graph, initial);
+    // 如果没有需要溢出的临时变量
     if spills.is_empty() {
         replace_allocation(instructions, allocation)
-    }
-    else {
+    } else {
         let (instructions, new_temps) = rewrite_program(instructions, spills, frame);
-        let initial: Vec<_> = colored_nodes.union(&new_temps).cloned().collect::<BTreeSet<_>>()
-            .union(&coalesced_nodes).cloned().collect();
+        let initial: Vec<_> = colored_nodes
+            .union(&new_temps)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .union(&coalesced_nodes)
+            .cloned()
+            .collect();
         allocate(instructions, initial, frame)
     }
 }
 
-fn replace_allocation(mut instructions: Vec<Instruction>, allocation: Allocation) -> Vec<Instruction> {
+fn replace_allocation(
+    mut instructions: Vec<Instruction>,
+    allocation: Allocation,
+) -> Vec<Instruction> {
     for instruction in &mut instructions {
         match *instruction {
             Instruction::Label { .. } => (),
-            Instruction::Move { ref mut destination, ref mut source, .. } |
-                Instruction::Operation { ref mut destination, ref mut source, .. } =>
-            {
+            Instruction::Move {
+                ref mut destination,
+                ref mut source,
+                ..
+            }
+            | Instruction::Operation {
+                ref mut destination,
+                ref mut source,
+                ..
+            } => {
                 for destination in destination {
                     if let Some(allocation) = allocation.get(destination) {
                         *destination = allocation.clone();
@@ -69,22 +101,29 @@ fn replace_allocation(mut instructions: Vec<Instruction>, allocation: Allocation
                         *source = allocation.clone();
                     }
                 }
-            },
+            }
         }
     }
 
-    instructions.retain(|instruction| {
-        match *instruction {
-            Instruction::Move { ref assembly, ref destination, ref source, .. } =>
-                !(assembly == "mov 'd0, 's0" && destination[0] == source[0]),
-            _ => true,
-        }
+    // 将源寄存器和目标寄存器相同的move指令删除。
+    instructions.retain(|instruction| match *instruction {
+        Instruction::Move {
+            ref assembly,
+            ref destination,
+            ref source,
+            ..
+        } => !(assembly == "mov 'd0, 's0" && destination[0] == source[0]),
+        _ => true,
     });
 
     instructions
 }
 
-fn rewrite_program<F: Frame>(instructions: Vec<Instruction>, spills: Vec<Temp>, frame: &mut F) -> (Vec<Instruction>, BTreeSet<Temp>) {
+fn rewrite_program<F: Frame>(
+    instructions: Vec<Instruction>,
+    spills: Vec<Temp>,
+    frame: &mut F,
+) -> (Vec<Instruction>, BTreeSet<Temp>) {
     let mut memory = HashMap::new();
     let mut new_temps = BTreeSet::new();
     for spill in &spills {
@@ -97,8 +136,20 @@ fn rewrite_program<F: Frame>(instructions: Vec<Instruction>, spills: Vec<Temp>, 
 
     for instruction in instructions {
         match instruction {
-            Instruction::Move { ref destination, ref source, .. } | Instruction::Operation { ref destination, ref source, .. } => {
-                if let Some(spill) = destination.iter().find(|destination| spills.contains(destination)) {
+            Instruction::Move {
+                ref destination,
+                ref source,
+                ..
+            }
+            | Instruction::Operation {
+                ref destination,
+                ref source,
+                ..
+            } => {
+                if let Some(spill) = destination
+                    .iter()
+                    .find(|destination| spills.contains(destination))
+                {
                     if let Some(spill) = source.iter().find(|source| spills.contains(source)) {
                         let temp = gen.munch_expression(memory[spill].clone());
                         gen.munch_statement(Statement::Move(Exp::Temp(*spill), Exp::Temp(temp)));
@@ -107,17 +158,15 @@ fn rewrite_program<F: Frame>(instructions: Vec<Instruction>, spills: Vec<Temp>, 
                     let spill = spill.clone();
                     gen.emit(instruction);
                     gen.munch_statement(Statement::Move(memory[&spill].clone(), Exp::Temp(spill)));
-                }
-                else if let Some(spill) = source.iter().find(|source| spills.contains(source)) {
+                } else if let Some(spill) = source.iter().find(|source| spills.contains(source)) {
                     let temp = gen.munch_expression(memory[spill].clone());
                     gen.munch_statement(Statement::Move(Exp::Temp(*spill), Exp::Temp(temp)));
                     new_temps.insert(temp);
                     gen.emit(instruction);
-                }
-                else {
+                } else {
                     gen.emit(instruction);
                 }
-            },
+            }
             Instruction::Label { .. } => gen.emit(instruction),
         }
     }
