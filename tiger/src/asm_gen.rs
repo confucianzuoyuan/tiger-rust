@@ -1,13 +1,8 @@
 use asm::Instruction;
-use frame::Frame;
 use frame::x86_64::X86_64;
-use frame::x86_64::{RSP, RAX, RDX};
-use ir::{
-    BinOp,
-    Exp,
-    RelationalOp,
-    Statement,
-};
+use frame::x86_64::{RAX, RDX, RSP};
+use frame::Frame;
+use ir::{BinOp, Exp, RelationalOp, Statement};
 use temp::Temp;
 
 pub struct Gen {
@@ -40,19 +35,18 @@ impl Gen {
                     };
                     self.emit(instruction);
                     temps.push(register);
-                },
+                }
                 None => break,
             }
         }
 
-        let instructions: Vec<_> = arguments.map(|argument| {
-            Instruction::Operation {
+        let instructions: Vec<_> = arguments
+            .map(|argument| Instruction::Operation {
                 assembly: "push 's0".to_string(),
                 source: vec![self.munch_expression(argument), RSP],
                 destination: vec![RSP],
                 jump: None,
-            }
-        })
+            })
             .rev() // Arguments are pushed backwards.
             .collect();
 
@@ -67,10 +61,24 @@ impl Gen {
         let temp = Temp::new();
         match expr {
             // Error cases:
-            Exp::Error | Exp::ExpSequence(_, _) | Exp::BinOp { left: box Exp::Error, .. }
-                | Exp::BinOp { right: box Exp::Error, .. } | Exp::BinOp { left: box Exp::Name(_), .. }
-                | Exp::BinOp { right: box Exp::Name(_), .. }
-                => unreachable!(),
+            Exp::Error
+            | Exp::ExpSequence(_, _)
+            | Exp::BinOp {
+                left: box Exp::Error,
+                ..
+            }
+            | Exp::BinOp {
+                right: box Exp::Error,
+                ..
+            }
+            | Exp::BinOp {
+                left: box Exp::Name(_),
+                ..
+            }
+            | Exp::BinOp {
+                right: box Exp::Name(_),
+                ..
+            } => unreachable!(),
 
             Exp::Name(ref label) => {
                 let instruction = Instruction::Move {
@@ -79,16 +87,24 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction)
-            },
-            Exp::Mem(box Exp::BinOp { op: BinOp::Plus, left: expr, right: box Exp::Const(num) }) |
-                Exp::Mem(box Exp::BinOp { op: BinOp::Plus, left: box Exp::Const(num), right: expr }) => {
+            }
+            Exp::Mem(box Exp::BinOp {
+                op: BinOp::Plus,
+                left: expr,
+                right: box Exp::Const(num),
+            })
+            | Exp::Mem(box Exp::BinOp {
+                op: BinOp::Plus,
+                left: box Exp::Const(num),
+                right: expr,
+            }) => {
                 let instruction = Instruction::Move {
                     assembly: format!("mov 'd0, ['s0 + {}]", num),
                     source: vec![self.munch_expression(*expr)],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
+            }
             Exp::Mem(box Exp::Const(num)) => {
                 let instruction = Instruction::Move {
                     assembly: format!("mov 'd0, [{}]", num),
@@ -96,7 +112,7 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
+            }
             Exp::Mem(expr) => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, ['s0]".to_string(),
@@ -104,9 +120,17 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Plus, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::Plus, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Plus,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::Plus,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -120,8 +144,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Minus, left: expr, right: box Exp::Const(num) } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Minus,
+                left: expr,
+                right: box Exp::Const(num),
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -135,8 +163,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Minus, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Minus,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: format!("mov 'd0, {}", num),
                     source: vec![],
@@ -150,9 +182,17 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Mul, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::Mul, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Mul,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::Mul,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: format!("mov 'd0, {}", num),
                     source: vec![],
@@ -178,8 +218,12 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Div, left: expr, right: box Exp::Const(num) } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Div,
+                left: expr,
+                right: box Exp::Const(num),
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 0".to_string(),
                     source: vec![],
@@ -212,8 +256,12 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Div, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Div,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 0".to_string(),
                     source: vec![],
@@ -239,9 +287,17 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::And, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::And, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::And,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::And,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -255,9 +311,17 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Or, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::Or, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Or,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::Or,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -271,9 +335,17 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::ShiftLeft, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::ShiftLeft, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::ShiftLeft,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::ShiftLeft,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -287,9 +359,17 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::ArithmeticShiftRight, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::ArithmeticShiftRight, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::ArithmeticShiftRight,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::ArithmeticShiftRight,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -303,9 +383,17 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::ShiftRight, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::ShiftRight, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::ShiftRight,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::ShiftRight,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -319,9 +407,17 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Xor, left: expr, right: box Exp::Const(num) } |
-                Exp::BinOp { op: BinOp::Xor, left: box Exp::Const(num), right: expr } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Xor,
+                left: expr,
+                right: box Exp::Const(num),
+            }
+            | Exp::BinOp {
+                op: BinOp::Xor,
+                left: box Exp::Const(num),
+                right: expr,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
@@ -335,7 +431,7 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
+            }
             Exp::Const(num) => {
                 let instruction = Instruction::Move {
                     assembly: format!("mov 'd0, {}", num),
@@ -343,8 +439,12 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Plus, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Plus,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -358,8 +458,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Minus, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Minus,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -373,8 +477,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Mul, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Mul,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -400,8 +508,12 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Div, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Div,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 0".to_string(),
                     source: vec![],
@@ -427,8 +539,12 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::And, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::And,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -442,8 +558,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Or, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Or,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -457,8 +577,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::ShiftLeft, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::ShiftLeft,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -472,8 +596,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::ArithmeticShiftRight, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::ArithmeticShiftRight,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -487,8 +615,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::ShiftRight, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::ShiftRight,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -502,8 +634,12 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
-            Exp::BinOp { op: BinOp::Xor, left, right } => {
+            }
+            Exp::BinOp {
+                op: BinOp::Xor,
+                left,
+                right,
+            } => {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
@@ -517,7 +653,7 @@ impl Gen {
                     jump: None,
                 };
                 self.emit(instruction);
-            },
+            }
             Exp::Temp(temp) => return temp,
             Exp::Call(box Exp::Name(label), arguments) => {
                 let argument_count = arguments.len();
@@ -539,14 +675,17 @@ impl Gen {
                 if argument_count > arg_register_count {
                     let stack_arg_count = argument_count - X86_64::arg_registers().len();
                     let instruction = Instruction::Operation {
-                        assembly: format!("add 'd0, {}", stack_arg_count as i64 * X86_64::WORD_SIZE),
+                        assembly: format!(
+                            "add 'd0, {}",
+                            stack_arg_count as i64 * X86_64::WORD_SIZE
+                        ),
                         source: vec![],
                         destination: vec![RSP],
                         jump: None,
                     };
                     self.emit(instruction);
                 }
-            },
+            }
             Exp::Call(function, arguments) => {
                 let argument_count = arguments.len();
                 let mut source = vec![self.munch_expression(*function)];
@@ -568,14 +707,17 @@ impl Gen {
                 if argument_count > arg_register_count {
                     let stack_arg_count = argument_count - X86_64::arg_registers().len();
                     let instruction = Instruction::Operation {
-                        assembly: format!("add 'd0, {}", stack_arg_count as i64 * X86_64::WORD_SIZE),
+                        assembly: format!(
+                            "add 'd0, {}",
+                            stack_arg_count as i64 * X86_64::WORD_SIZE
+                        ),
                         source: vec![],
                         destination: vec![RSP],
                         jump: None,
                     };
                     self.emit(instruction);
                 }
-            },
+            }
         }
 
         temp
@@ -586,25 +728,33 @@ impl Gen {
             Statement::Sequence(statement1, statement2) => {
                 self.munch_statement(*statement1);
                 self.munch_statement(*statement2);
-            },
-            Statement::Move(Exp::Mem(box Exp::BinOp {
-                op: BinOp::Plus,
-                left: memory_destination,
-                right: box Exp::Const(num),
-            }), expr) |
-                Statement::Move(Exp::Mem(box Exp::BinOp {
+            }
+            Statement::Move(
+                Exp::Mem(box Exp::BinOp {
+                    op: BinOp::Plus,
+                    left: memory_destination,
+                    right: box Exp::Const(num),
+                }),
+                expr,
+            )
+            | Statement::Move(
+                Exp::Mem(box Exp::BinOp {
                     op: BinOp::Plus,
                     left: box Exp::Const(num),
                     right: memory_destination,
-                }), expr) => {
-                let instruction =
-                    Instruction::Move {
-                        assembly: format!("mov ['s0 + {}], 's1", num), // FIXME: might be wrong if expr is in memory as Intel might not allow a move from memory to memory.
-                        source: vec![self.munch_expression(*memory_destination), self.munch_expression(expr)],
-                        destination: vec![],
-                    };
+                }),
+                expr,
+            ) => {
+                let instruction = Instruction::Move {
+                    assembly: format!("mov ['s0 + {}], 's1", num), // FIXME: might be wrong if expr is in memory as Intel might not allow a move from memory to memory.
+                    source: vec![
+                        self.munch_expression(*memory_destination),
+                        self.munch_expression(expr),
+                    ],
+                    destination: vec![],
+                };
                 self.emit(instruction);
-            },
+            }
             /*Statement::Move(Exp::Mem(box Exp::BinOp {
                 op: BinOp::Plus,
                 left: memory_destination,
@@ -627,23 +777,24 @@ impl Gen {
                 self.emit(instruction);
             },*/
             Statement::Move(Exp::Mem(box Exp::Const(num)), expr) => {
-                let instruction =
-                    Instruction::Move {
-                        assembly: format!("mov [{}], ['s0]", num), // FIXME: not sure move from memory to memory is allowed.
-                        source: vec![self.munch_expression(expr)],
-                        destination: vec![],
-                    };
+                let instruction = Instruction::Move {
+                    assembly: format!("mov [{}], ['s0]", num), // FIXME: not sure move from memory to memory is allowed.
+                    source: vec![self.munch_expression(expr)],
+                    destination: vec![],
+                };
                 self.emit(instruction);
-            },
+            }
             Statement::Move(Exp::Mem(destination), source) => {
-                let instruction =
-                    Instruction::Move {
-                        assembly: "mov ['s0], 's1".to_string(),
-                        source: vec![self.munch_expression(*destination), self.munch_expression(source)],
-                        destination: vec![],
-                    };
+                let instruction = Instruction::Move {
+                    assembly: "mov ['s0], 's1".to_string(),
+                    source: vec![
+                        self.munch_expression(*destination),
+                        self.munch_expression(source),
+                    ],
+                    destination: vec![],
+                };
                 self.emit(instruction);
-            },
+            }
             Statement::Move(Exp::Temp(temp), source) => {
                 let generate_instruction = {
                     let source = source.clone();
@@ -653,90 +804,94 @@ impl Gen {
                         destination: vec![temp],
                     }
                 };
-                let instruction =
-                    if let Exp::Mem(box Exp::BinOp { op: BinOp::Plus, left: expr, right: box Exp::Const(num) }) = source {
-                        // TODO: should that optimization be removed in favor of loophole optimization?
-                        if <X86_64 as Frame>::registers().contains(&temp) {
-                            Instruction::Move {
-                                assembly: format!("mov 'd0, ['s0 + {}]", num),
-                                source: vec![self.munch_expression(*expr)],
-                                destination: vec![temp],
-                            }
+                let instruction = if let Exp::Mem(box Exp::BinOp {
+                    op: BinOp::Plus,
+                    left: expr,
+                    right: box Exp::Const(num),
+                }) = source
+                {
+                    // TODO: should that optimization be removed in favor of loophole optimization?
+                    if <X86_64 as Frame>::registers().contains(&temp) {
+                        Instruction::Move {
+                            assembly: format!("mov 'd0, ['s0 + {}]", num),
+                            source: vec![self.munch_expression(*expr)],
+                            destination: vec![temp],
                         }
-                        else {
-                            generate_instruction()
-                        }
-                    }
-                    else {
+                    } else {
                         generate_instruction()
-                    };
+                    }
+                } else {
+                    generate_instruction()
+                };
 
                 self.emit(instruction);
-            },
+            }
             Statement::Label(label) => {
-                let instruction =
-                    Instruction::Label {
-                        assembly: format!("{}:", label),
-                        label,
-                    };
+                let instruction = Instruction::Label {
+                    assembly: format!("{}:", label),
+                    label,
+                };
                 self.emit(instruction);
-            },
+            }
             Statement::Exp(Exp::Const(_)) => (), // Nop statement.
             Statement::Exp(exp) => {
                 self.munch_expression(exp);
-            },
-            Statement::Jump(exp, labels) => {
-                match exp {
-                    Exp::Name(label) => {
-                        let instruction =
-                            Instruction::Operation {
-                                assembly: format!("jmp {}", label),
-                                source: vec![],
-                                destination: vec![],
-                                jump: Some(labels),
-                            };
-                        self.emit(instruction);
-                    },
-                    _ => panic!("Unexpected jump expression: {:?}", exp),
-                }
-            },
-            Statement::CondJump { op, left, right, false_label, true_label } => {
-                let instruction =
-                    Instruction::Operation {
-                        assembly: "cmp 's0, 's1".to_string(),
-                        source: vec![self.munch_expression(left), self.munch_expression(right)],
-                        destination: vec![],
-                        jump: None,
-                    };
-                self.emit(instruction);
-
-                let opcode =
-                    match op {
-                        RelationalOp::Equal => "je",
-                        RelationalOp::NotEqual => "jne",
-                        RelationalOp::LesserThan => "jl",
-                        RelationalOp::GreaterThan => "jg",
-                        RelationalOp::LesserOrEqual => "jle",
-                        RelationalOp::GreaterOrEqual => "jge",
-                        RelationalOp::UnsignedLesserThan => "jb",
-                        RelationalOp::UnsignedLesserOrEqual => "jbe",
-                        RelationalOp::UnsignedGreaterThan => "ja",
-                        RelationalOp::UnsignedGreaterOrEqual => "jae",
-                    };
-                let instruction =
-                    Instruction::Operation {
-                        assembly: format!("{} {}", opcode, true_label),
+            }
+            Statement::Jump(exp, labels) => match exp {
+                Exp::Name(label) => {
+                    let instruction = Instruction::Operation {
+                        assembly: format!("jmp {}", label),
                         source: vec![],
                         destination: vec![],
-                        jump: Some(vec![false_label, true_label]),
+                        jump: Some(labels),
                     };
-                self.emit(instruction);
+                    self.emit(instruction);
+                }
+                _ => panic!("Unexpected jump expression: {:?}", exp),
             },
+            Statement::CondJump {
+                op,
+                left,
+                right,
+                false_label,
+                true_label,
+            } => {
+                let instruction = Instruction::Operation {
+                    assembly: "cmp 's0, 's1".to_string(),
+                    source: vec![self.munch_expression(left), self.munch_expression(right)],
+                    destination: vec![],
+                    jump: None,
+                };
+                self.emit(instruction);
+
+                let opcode = match op {
+                    RelationalOp::Equal => "je",
+                    RelationalOp::NotEqual => "jne",
+                    RelationalOp::LesserThan => "jl",
+                    RelationalOp::GreaterThan => "jg",
+                    RelationalOp::LesserOrEqual => "jle",
+                    RelationalOp::GreaterOrEqual => "jge",
+                    RelationalOp::UnsignedLesserThan => "jb",
+                    RelationalOp::UnsignedLesserOrEqual => "jbe",
+                    RelationalOp::UnsignedGreaterThan => "ja",
+                    RelationalOp::UnsignedGreaterOrEqual => "jae",
+                };
+                let instruction = Instruction::Operation {
+                    assembly: format!("{} {}", opcode, true_label),
+                    source: vec![],
+                    destination: vec![],
+                    jump: Some(vec![false_label, true_label]),
+                };
+                self.emit(instruction);
+            }
 
             // Error cases:
-            Statement::Move(Exp::Const(_), _) | Statement::Move(Exp::Error, _) | Statement::Move(Exp::Name(_), _) |
-                Statement::Move(Exp::BinOp { .. }, _) | Statement::Move(Exp::Call(_, _), _) |
-                Statement::Move(Exp::ExpSequence(_, _), _) => unreachable!("{:#?}", statement),
+            Statement::Move(Exp::Const(_), _)
+            | Statement::Move(Exp::Error, _)
+            | Statement::Move(Exp::Name(_), _)
+            | Statement::Move(Exp::BinOp { .. }, _)
+            | Statement::Move(Exp::Call(_, _), _)
+            | Statement::Move(Exp::ExpSequence(_, _), _) => unreachable!("{:#?}", statement),
         }
     }
 

@@ -61,7 +61,11 @@ fn allocate<F: Frame>(
     // 如果没有需要溢出的临时变量
     if spills.is_empty() {
         replace_allocation(instructions, allocation)
-    } else {
+    }
+    // 如果有需要溢出的临时变量，重写程序，产生一些新的指令。
+    // 临时变量的溢出是指寄存器不够用，所以需要将临时变量保存到内存中，也就是栈帧中。
+    // 保存操作由一系列IR指令表示。
+    else {
         let (instructions, new_temps) = rewrite_program(instructions, spills, frame);
         let initial: Vec<_> = colored_nodes
             .union(&new_temps)
@@ -124,16 +128,23 @@ fn rewrite_program<F: Frame>(
     spills: Vec<Temp>,
     frame: &mut F,
 ) -> (Vec<Instruction>, BTreeSet<Temp>) {
+    // key: 需要溢出的临时变量。
+    // value: 溢出操作的IR指令。
     let mut memory = HashMap::new();
     let mut new_temps = BTreeSet::new();
+    // 遍历需要溢出的临时变量。
     for spill in &spills {
+        // 溢出的临时变量的逃逸的。
+        // 计算在栈帧中相对于帧指针的偏移量。
         let local = frame.alloc_local(true);
+        // 生成IR指令。
         let exp = frame.exp(local, Exp::Temp(F::fp()));
         memory.insert(spill, exp);
         new_temps.insert(*spill);
     }
     let mut gen = Gen::new();
 
+    // 遍历所有伪指令。
     for instruction in instructions {
         match instruction {
             Instruction::Move {
