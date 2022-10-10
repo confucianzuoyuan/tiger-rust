@@ -1,19 +1,19 @@
 /* A program to solve the 8-queens problem */
 
-let var N := 8
+let var N := 4
 
     type intArray = array of int
 
-    var row := intArray [ N ] of 0
-    var col := intArray [ N ] of 0
-    var diag1:=intArray[N+N-1] of 0
-    var diag2 := intArray [N + N - 1] of 0
+    var row := intArray[N] of 0
+    var col := intArray[N] of 0
+    var diag1 := intArray[N + N - 1] of 0
+    var diag2 := intArray[N + N - 1] of 0
 
     function printBoard() = (
         for i := 0 to N - 1 do (
             for j := 0 to N - 1 do
                 print(
-                    if col[i]=j then
+                    if col[i] = j then
                         " O"
                     else
                         " ."
@@ -24,7 +24,7 @@ let var N := 8
     )
 
     function try(c: int) =
-        if c=N then
+        if c = N then
             printBoard()
         else
             for r := 0 to N - 1 do

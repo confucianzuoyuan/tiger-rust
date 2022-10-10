@@ -1,27 +1,7 @@
-/*
- * Copyright (c) 2019 Boucher, Antoni <bouanto@zoho.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
 use asm::Instruction;
 use frame::Frame;
 use frame::x86_64::X86_64;
+use frame::x86_64::{RSP, RAX, RDX};
 use ir::{
     BinOp,
     Exp,
@@ -68,8 +48,8 @@ impl Gen {
         let instructions: Vec<_> = arguments.map(|argument| {
             Instruction::Operation {
                 assembly: "push 's0".to_string(),
-                source: vec![self.munch_expression(argument), X86_64::rsp()],
-                destination: vec![X86_64::rsp()],
+                source: vec![self.munch_expression(argument), RSP],
+                destination: vec![RSP],
                 jump: None,
             }
         })
@@ -182,19 +162,19 @@ impl Gen {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
-                    destination: vec![X86_64::rax()],
+                    destination: vec![RAX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Operation {
                     assembly: "mul 's0".to_string(),
-                    source: vec![temp, X86_64::rax()],
-                    destination: vec![X86_64::rax(), X86_64::rdx()],
+                    source: vec![temp, RAX],
+                    destination: vec![RAX, RDX],
                     jump: None,
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -203,13 +183,13 @@ impl Gen {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 0".to_string(),
                     source: vec![],
-                    destination: vec![X86_64::rdx()],
+                    destination: vec![RDX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*expr)],
-                    destination: vec![X86_64::rax()],
+                    destination: vec![RAX],
                 };
                 self.emit(instruction);
                 let immediate = Temp::new();
@@ -221,14 +201,14 @@ impl Gen {
                 self.emit(instruction);
                 let instruction = Instruction::Operation {
                     assembly: "idiv 's0".to_string(),
-                    source: vec![immediate, X86_64::rax(), X86_64::rdx()],
-                    destination: vec![X86_64::rax(), X86_64::rdx()],
+                    source: vec![immediate, RAX, RDX],
+                    destination: vec![RAX, RDX],
                     jump: None,
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -237,25 +217,25 @@ impl Gen {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 0".to_string(),
                     source: vec![],
-                    destination: vec![X86_64::rdx()],
+                    destination: vec![RDX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: format!("mov 'd0, {}", num),
                     source: vec![],
-                    destination: vec![X86_64::rax()],
+                    destination: vec![RAX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Operation {
                     assembly: "idiv 's0".to_string(),
-                    source: vec![self.munch_expression(*expr), X86_64::rax(), X86_64::rdx()],
-                    destination: vec![X86_64::rax(), X86_64::rdx()],
+                    source: vec![self.munch_expression(*expr), RAX, RDX],
+                    destination: vec![RAX, RDX],
                     jump: None,
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -404,19 +384,19 @@ impl Gen {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*right)],
-                    destination: vec![X86_64::rax()],
+                    destination: vec![RAX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Operation {
                     assembly: "mul 's0".to_string(),
-                    source: vec![temp, X86_64::rax()],
-                    destination: vec![X86_64::rax(), X86_64::rdx()],
+                    source: vec![temp, RAX],
+                    destination: vec![RAX, RDX],
                     jump: None,
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -425,25 +405,25 @@ impl Gen {
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 0".to_string(),
                     source: vec![],
-                    destination: vec![X86_64::rdx()],
+                    destination: vec![RDX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*left)],
-                    destination: vec![X86_64::rax()],
+                    destination: vec![RAX],
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Operation {
                     assembly: "idiv 's0".to_string(),
-                    source: vec![self.munch_expression(*right), X86_64::rax(), X86_64::rdx()],
-                    destination: vec![X86_64::rax(), X86_64::rdx()],
+                    source: vec![self.munch_expression(*right), RAX, RDX],
+                    destination: vec![RAX, RDX],
                     jump: None,
                 };
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -551,7 +531,7 @@ impl Gen {
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -561,7 +541,7 @@ impl Gen {
                     let instruction = Instruction::Operation {
                         assembly: format!("add 'd0, {}", stack_arg_count as i64 * X86_64::WORD_SIZE),
                         source: vec![],
-                        destination: vec![X86_64::rsp()],
+                        destination: vec![RSP],
                         jump: None,
                     };
                     self.emit(instruction);
@@ -580,7 +560,7 @@ impl Gen {
                 self.emit(instruction);
                 let instruction = Instruction::Move {
                     assembly: "mov 'd0, 's0".to_string(),
-                    source: vec![X86_64::rax()],
+                    source: vec![RAX],
                     destination: vec![temp],
                 };
                 self.emit(instruction);
@@ -590,7 +570,7 @@ impl Gen {
                     let instruction = Instruction::Operation {
                         assembly: format!("add 'd0, {}", stack_arg_count as i64 * X86_64::WORD_SIZE),
                         source: vec![],
-                        destination: vec![X86_64::rsp()],
+                        destination: vec![RSP],
                         jump: None,
                     };
                     self.emit(instruction);

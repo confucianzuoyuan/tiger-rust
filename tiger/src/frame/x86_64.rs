@@ -1,39 +1,10 @@
-/*
- * Copyright (c) 2018-2019 Boucher, Antoni <bouanto@zoho.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
 use std::collections::HashMap;
-use std::sync::Once;
 
+use super::Frame;
 use asm::{Instruction, Subroutine};
 use ir::BinOp::Plus;
-use ir::Exp:: {
-    self,
-    BinOp,
-    Call,
-    Const,
-    Mem,
-    Name,
-};
+use ir::Exp::{self, BinOp, Call, Const, Mem, Name};
 use ir::Statement;
-use super::Frame;
 use temp::{Label, Temp};
 
 use self::Access::{InFrame, InReg};
@@ -59,60 +30,52 @@ pub enum Access {
     InReg(Temp),
 }
 
-static mut RBP: Option<Temp> = None;
-static mut RSP: Option<Temp> = None;
-static mut RAX: Option<Temp> = None;
-static mut RBX: Option<Temp> = None;
-static mut RCX: Option<Temp> = None;
-static mut RDX: Option<Temp> = None;
-static mut RSI: Option<Temp> = None;
-static mut RDI: Option<Temp> = None;
-static mut R8: Option<Temp> = None;
-static mut R9: Option<Temp> = None;
-static mut R10: Option<Temp> = None;
-static mut R11: Option<Temp> = None;
-static mut R12: Option<Temp> = None;
-static mut R13: Option<Temp> = None;
-static mut R14: Option<Temp> = None;
-static mut R15: Option<Temp> = None;
-static ONCE: Once = Once::new();
-
-fn initialize() {
-    unsafe {
-        RBP = Some(Temp::new());
-        RSP = Some(Temp::new());
-        RAX = Some(Temp::new());
-        RBX = Some(Temp::new());
-        RCX = Some(Temp::new());
-        RDX = Some(Temp::new());
-        RDI = Some(Temp::new());
-        RSI = Some(Temp::new());
-        R8 = Some(Temp::new());
-        R9 = Some(Temp::new());
-        R10 = Some(Temp::new());
-        R11 = Some(Temp::new());
-        R12 = Some(Temp::new());
-        R13 = Some(Temp::new());
-        R14 = Some(Temp::new());
-        R15 = Some(Temp::new());
-    }
-}
+pub const RBP: Temp = Temp { num: 1 };
+pub const RSP: Temp = Temp { num: 2 };
+pub const RAX: Temp = Temp { num: 3 };
+pub const RBX: Temp = Temp { num: 4 };
+pub const RCX: Temp = Temp { num: 5 };
+pub const RDX: Temp = Temp { num: 6 };
+pub const RSI: Temp = Temp { num: 7 };
+pub const RDI: Temp = Temp { num: 8 };
+pub const R8: Temp = Temp { num: 9 };
+pub const R9: Temp = Temp { num: 10 };
+pub const R10: Temp = Temp { num: 11 };
+pub const R11: Temp = Temp { num: 12 };
+pub const R12: Temp = Temp { num: 13 };
+pub const R13: Temp = Temp { num: 14 };
+pub const R14: Temp = Temp { num: 15 };
+pub const R15: Temp = Temp { num: 16 };
 
 impl X86_64 {
     pub fn arg_registers() -> Vec<Temp> {
-        vec![Self::rdi(), Self::rsi(), Self::rdx(), Self::rcx(), Self::r8(), Self::r9()]
+        vec![
+            RDI,
+            RSI,
+            RDX,
+            RCX,
+            R8,
+            R9,
+        ]
     }
 
     fn callee_saved_registers() -> Vec<Temp> {
-        vec![Self::rbx(), Self::rbp(), Self::r12(), Self::r13(), Self::r14(), Self::r15()]
+        vec![
+            RBX,
+            RBP,
+            R12,
+            R13,
+            R14,
+            R15,
+        ]
     }
 
     fn special_registers() -> Vec<Temp> {
-        vec![Self::rax(), Self::rsp()]
+        vec![RAX, RSP]
     }
 
     fn caller_saved_registers() -> Vec<Temp> {
-        vec![Self::r10(), Self::r11()]
+        vec![R10, R11]
     }
 
     pub fn calldefs() -> Vec<Temp> {
@@ -120,86 +83,6 @@ impl X86_64 {
         registers.extend(Self::arg_registers());
         registers.push(Self::return_value());
         registers
-    }
-
-    pub fn rsp() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RSP.expect("temp") }
-    }
-
-    fn rbp() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RBP.expect("temp") }
-    }
-
-    fn rdi() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RDI.expect("temp") }
-    }
-
-    fn rsi() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RSI.expect("temp") }
-    }
-
-    pub fn rax() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RAX.expect("temp") }
-    }
-
-    fn rbx() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RBX.expect("temp") }
-    }
-
-    fn rcx() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RCX.expect("temp") }
-    }
-
-    pub fn rdx() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { RDX.expect("temp") }
-    }
-
-    fn r8() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R8.expect("temp") }
-    }
-
-    fn r9() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R9.expect("temp") }
-    }
-
-    fn r10() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R10.expect("temp") }
-    }
-
-    fn r11() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R11.expect("temp") }
-    }
-
-    fn r12() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R12.expect("temp") }
-    }
-
-    fn r13() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R13.expect("temp") }
-    }
-
-    fn r14() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R14.expect("temp") }
-    }
-
-    fn r15() -> Temp {
-        ONCE.call_once(initialize);
-        unsafe { R15.expect("temp") }
     }
 }
 
@@ -218,27 +101,27 @@ impl Frame for X86_64 {
     }
 
     fn register_count() -> usize {
-        Self::registers().len() - [Self::rsp(), Self::rbp()].len()
+        Self::registers().len() - [RSP, RBP].len()
     }
 
     fn temp_map() -> HashMap<Temp, &'static str> {
         let mut map = HashMap::new();
-        map.insert(Self::rbp(), "rbp");
-        map.insert(Self::rsp(), "rsp");
-        map.insert(Self::return_value(), "rax");
-        map.insert(Self::rbx(), "rbx");
-        map.insert(Self::rdi(), "rdi");
-        map.insert(Self::rsi(), "rsi");
-        map.insert(Self::rdx(), "rdx");
-        map.insert(Self::rcx(), "rcx");
-        map.insert(Self::r8(), "r8");
-        map.insert(Self::r9(), "r9");
-        map.insert(Self::r10(), "r10");
-        map.insert(Self::r11(), "r11");
-        map.insert(Self::r12(), "r12");
-        map.insert(Self::r13(), "r13");
-        map.insert(Self::r14(), "r14");
-        map.insert(Self::r15(), "r15");
+        map.insert(RBP, "rbp");
+        map.insert(RSP, "rsp");
+        map.insert(RAX, "rax");
+        map.insert(RBX, "rbx");
+        map.insert(RDI, "rdi");
+        map.insert(RSI, "rsi");
+        map.insert(RDX, "rdx");
+        map.insert(RCX, "rcx");
+        map.insert(R8, "r8");
+        map.insert(R9, "r9");
+        map.insert(R10, "r10");
+        map.insert(R11, "r11");
+        map.insert(R12, "r12");
+        map.insert(R13, "r13");
+        map.insert(R14, "r14");
+        map.insert(R15, "r15");
         map
     }
 
@@ -247,11 +130,11 @@ impl Frame for X86_64 {
     }
 
     fn fp() -> Temp {
-        Self::rbp()
+        RBP
     }
 
     fn return_value() -> Temp {
-        Self::rax()
+        RAX
     }
 
     fn new(name: Label, formals: Vec<bool>) -> Self {
@@ -260,7 +143,8 @@ impl Frame for X86_64 {
             name,
             pointer: 0,
         };
-        let formals = formals.iter()
+        let formals = formals
+            .iter()
             .map(|&escape| frame.alloc_local(escape))
             .collect();
         frame.formals = formals;
@@ -279,24 +163,19 @@ impl Frame for X86_64 {
         if escape {
             self.pointer -= POINTER_SIZE;
             InFrame(self.pointer)
-        }
-        else {
+        } else {
             InReg(Temp::new())
         }
     }
 
     fn exp(&self, access: Self::Access, stack_frame: Exp) -> Exp {
         match access {
-            InFrame(pos) => {
-                Mem(Box::new(BinOp {
-                    op: Plus,
-                    left: Box::new(stack_frame),
-                    right: Box::new(Const(pos)),
-                }))
-            },
-            InReg(reg) => {
-                Exp::Temp(reg)
-            },
+            InFrame(pos) => Mem(Box::new(BinOp {
+                op: Plus,
+                left: Box::new(stack_frame),
+                right: Box::new(Const(pos)),
+            })),
+            InReg(reg) => Exp::Temp(reg),
         }
     }
 
@@ -324,16 +203,20 @@ impl Frame for X86_64 {
         }
         for (index, formal) in self.formals.iter().skip(arg_registers_len).enumerate() {
             let destination = self.exp(formal.clone(), Exp::Temp(Self::fp()));
-            start_statements.push(Statement::Move(destination, Exp::Mem(Box::new(
-                Exp::BinOp {
+            start_statements.push(Statement::Move(
+                destination,
+                Exp::Mem(Box::new(Exp::BinOp {
                     left: Box::new(Exp::Temp(Self::fp())),
                     op: Plus,
                     right: Box::new(Exp::Const(Self::WORD_SIZE * (index + 2) as i64)),
-                }
-            ))));
+                })),
+            ));
         }
 
-        for (register, location) in Self::callee_saved_registers().into_iter().zip(saved_register_locations) {
+        for (register, location) in Self::callee_saved_registers()
+            .into_iter()
+            .zip(saved_register_locations)
+        {
             end_statements.push(Statement::Move(Exp::Temp(register), location));
         }
 
@@ -363,26 +246,30 @@ impl Frame for X86_64 {
         for instruction in &mut instructions {
             match *instruction {
                 Instruction::Label { .. } => (),
-                Instruction::Move { ref mut destination, .. } |
-                    Instruction::Operation { ref mut destination, .. } =>
-                {
-                    destination.push(Self::rbp());
-                    destination.push(Self::rsp());
+                Instruction::Move {
+                    ref mut destination,
+                    ..
+                }
+                | Instruction::Operation {
+                    ref mut destination,
+                    ..
+                } => {
+                    destination.push(RBP);
+                    destination.push(RSP);
                     break;
-                },
+                }
             }
         }
 
         for instruction in instructions.iter_mut().rev() {
             match *instruction {
                 Instruction::Label { .. } => (),
-                Instruction::Move { ref mut source, .. } |
-                    Instruction::Operation { ref mut source, .. } =>
-                {
-                    source.push(Self::rbp());
-                    source.push(Self::rsp());
+                Instruction::Move { ref mut source, .. }
+                | Instruction::Operation { ref mut source, .. } => {
+                    source.push(RBP);
+                    source.push(RSP);
                     break;
-                },
+                }
             }
         }
 
@@ -396,14 +283,20 @@ impl Frame for X86_64 {
             stack_size = (stack_size & !0xF) + 0x10;
         }
 
-        Subroutine { // FIXME: saving to rbp is apparently not needed in 64-bit.
-            prolog: format!("{}:
+        Subroutine {
+            // FIXME: saving to rbp is apparently not needed in 64-bit.
+            prolog: format!(
+                "{}:
     push rbp
     mov rbp, rsp
-    sub rsp, {}", self.name(), stack_size),
+    sub rsp, {}",
+                self.name(),
+                stack_size
+            ),
             body,
             epilog: "leave
-    ret".to_string(),
+    ret"
+            .to_string(),
         }
     }
 }
