@@ -451,6 +451,9 @@ impl Gen {
                     destination: vec![temp],
                 };
                 self.emit(instruction);
+                // 二元指令
+                // temp ← temp + right
+                // 'd0 ← 'd0 + 's0
                 let instruction = Instruction::Operation {
                     assembly: "add 'd0, 's0".to_string(),
                     source: vec![self.munch_expression(*right), temp],
