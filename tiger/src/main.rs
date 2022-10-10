@@ -27,7 +27,7 @@ mod token;
 mod types;
 
 use std::env::args;
-use std::fs::{File, read_dir};
+use std::fs::{read_dir, File};
 use std::io::{self, BufReader, Write};
 use std::path::PathBuf;
 use std::process::Command;
@@ -38,8 +38,8 @@ use canon::{basic_blocks, linearize, trace_schedule};
 use env::Env;
 use error::Error;
 use escape::find_escapes;
-use frame::{Fragment, Frame};
 use frame::x86_64::X86_64;
+use frame::{Fragment, Frame};
 use lexer::Lexer;
 use parser::Parser;
 use reg_alloc::alloc;
@@ -93,7 +93,7 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                     Fragment::Function { .. } => (),
                     Fragment::Str(label, string) => {
                         writeln!(file, "    {}: db {}, 0", label, to_nasm(string))?;
-                    },
+                    }
                 }
             }
 
@@ -124,13 +124,17 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                             writeln!(file, "    {}", instruction.to_string::<X86_64>())?;
                         }
                         writeln!(file, "    {}", subroutine.epilog)?;
-                    },
+                    }
                     Fragment::Str(_, _) => (),
                 }
             }
 
             let status = Command::new("nasm")
-                .args(&["-f", "elf64", asm_output_path.to_str().expect("asm output path")])
+                .args(&[
+                    "-f",
+                    "elf64",
+                    asm_output_path.to_str().expect("asm output path"),
+                ])
                 .status();
 
             if let Ok(return_code) = status {
@@ -141,13 +145,27 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                     executable_output_path.set_extension("");
                     Command::new("ld")
                         .args(&[
-                            "-dynamic-linker", "/usr/lib64/ld-linux-x86-64.so.2", "-o",
-                            executable_output_path.to_str().expect("executable output path"),
-                            "/usr/lib/x86_64-linux-gnu/Scrt1.o", "/usr/lib/x86_64-linux-gnu/crti.o", &format!("-L{}", get_gcc_lib_dir()?),
+                            "-dynamic-linker",
+                            "/usr/lib64/ld-linux-x86-64.so.2",
+                            "-o",
+                            executable_output_path
+                                .to_str()
+                                .expect("executable output path"),
+                            "/usr/lib/x86_64-linux-gnu/Scrt1.o",
+                            "/usr/lib/x86_64-linux-gnu/crti.o",
+                            &format!("-L{}", get_gcc_lib_dir()?),
                             "-L/usr/lib64/",
                             object_output_path.to_str().expect("object output path"),
-                            "target/debug/libruntime.a", "-lpthread", "-ldl", "--no-as-needed", "-lc", "-lgcc", "--as-needed",
-                            "-lgcc_s", "--no-as-needed", "/usr/lib/x86_64-linux-gnu/crtn.o"
+                            "target/debug/libruntime.a",
+                            "-lpthread",
+                            "-ldl",
+                            "--no-as-needed",
+                            "-lc",
+                            "-lgcc",
+                            "--as-needed",
+                            "-lgcc_s",
+                            "--no-as-needed",
+                            "/usr/lib/x86_64-linux-gnu/crtn.o",
                         ])
                         .status()
                         .expect("link");
@@ -162,11 +180,10 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
 fn to_nasm(string: &str) -> String {
     let mut result = "'".to_string();
     for char in string.chars() {
-        let string =
-            match char {
-                '\n' | '\t' => format!("', {}, '", char as u32),
-                _ => char.to_string(),
-            };
+        let string = match char {
+            '\n' | '\t' => format!("', {}, '", char as u32),
+            _ => char.to_string(),
+        };
         result.push_str(&string);
     }
     result.push('\'');
@@ -179,7 +196,9 @@ fn get_gcc_lib_dir() -> io::Result<String> {
     for file in files {
         let file = file?;
         if file.metadata()?.is_dir() {
-            return file.file_name().to_str()
+            return file
+                .file_name()
+                .to_str()
                 .map(|str| format!("{}{}", directory, str))
                 .ok_or(io::ErrorKind::InvalidData.into());
         }

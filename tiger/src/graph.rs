@@ -52,9 +52,7 @@ pub struct Graph<T> {
 
 impl<T> Graph<T> {
     pub fn new() -> Self {
-        Self {
-            nodes: vec![],
-        }
+        Self { nodes: vec![] }
     }
 
     pub fn insert(&mut self, node: T) -> Entry {

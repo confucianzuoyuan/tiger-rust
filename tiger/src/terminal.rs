@@ -22,8 +22,7 @@ impl Terminal {
     pub fn bold(&self) -> &str {
         if self.is_a_tty {
             BOLD
-        }
-        else {
+        } else {
             ""
         }
     }
@@ -31,8 +30,7 @@ impl Terminal {
     pub fn blue(&self) -> &str {
         if self.is_a_tty {
             BLUE
-        }
-        else {
+        } else {
             ""
         }
     }
@@ -40,8 +38,7 @@ impl Terminal {
     pub fn end_bold(&self) -> &str {
         if self.is_a_tty {
             END_BOLD
-        }
-        else {
+        } else {
             ""
         }
     }
@@ -49,8 +46,7 @@ impl Terminal {
     pub fn red(&self) -> &str {
         if self.is_a_tty {
             RED
-        }
-        else {
+        } else {
             ""
         }
     }
@@ -58,17 +54,14 @@ impl Terminal {
     pub fn reset_color(&self) -> &str {
         if self.is_a_tty {
             RESET_COLOR
-        }
-        else {
+        } else {
             ""
         }
     }
 }
 
 fn stderr_is_a_tty() -> bool {
-    unsafe {
-        isatty(stderr().as_raw_fd()) != 0
-    }
+    unsafe { isatty(stderr().as_raw_fd()) != 0 }
 }
 
 extern "C" {

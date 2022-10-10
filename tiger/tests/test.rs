@@ -61,13 +61,22 @@ fn test_execution() {
         let child = Command::new(format!("./tests/{}", file))
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())
-            .spawn().expect("spawn");
+            .spawn()
+            .expect("spawn");
         if Path::new(&format!("./tests/{}.stdin", file)).exists() {
             let input = fs::read(format!("./tests/{}.stdin", file)).expect("read");
-            child.stdin.expect("stdin").write_all(&input).expect("write stdin");
+            child
+                .stdin
+                .expect("stdin")
+                .write_all(&input)
+                .expect("write stdin");
         }
         let mut buffer = vec![];
-        let read_size = child.stdout.expect("stdout").read_to_end(&mut buffer).expect("output");
+        let read_size = child
+            .stdout
+            .expect("stdout")
+            .read_to_end(&mut buffer)
+            .expect("output");
         let output = &buffer[..read_size];
         let expected_output = fs::read(format!("./tests/{}.stdout", file)).expect("read");
         assert_eq!(output, &*expected_output, "{}.tig", file);

@@ -10,7 +10,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use flow::FlowGraph;
-use frame::{Frame, x86_64::X86_64};
+use frame::{x86_64::X86_64, Frame};
 use graph::{Entry, Graph, Node};
 use temp::Temp;
 
@@ -79,7 +79,9 @@ pub fn interference_graph(graph: FlowGraph) -> InterferenceGraph {
 
             let mut set = HashSet::new();
             for &successor in node.successors() {
-                let in_set = live_in.entry(successor.index()).or_insert_with(|| HashSet::new());
+                let in_set = live_in
+                    .entry(successor.index())
+                    .or_insert_with(|| HashSet::new());
                 set.extend(in_set.clone());
             }
             live_out.insert(index, set);
@@ -111,7 +113,8 @@ pub fn interference_graph(graph: FlowGraph) -> InterferenceGraph {
                     worklist_moves.insert((*define, *use_));
 
                     for temp in node.defines.iter().chain(node.uses.iter()) {
-                        move_list.entry(*temp)
+                        move_list
+                            .entry(*temp)
                             .or_insert_with(|| BTreeSet::new())
                             .insert((*define, *use_));
                     }

@@ -7,8 +7,8 @@ use error::num_text_size;
 use error::Error::{self, Eof, InvalidEscape, Msg, Unclosed, UnknownToken};
 use position::Pos;
 use symbol::Symbol;
-use token::{Tok, Token};
 use token::Tok::*;
+use token::{Tok, Token};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -33,13 +33,13 @@ impl<R: Read> Lexer<R> {
                 self.pos.line += 1;
                 self.pos.column = 1;
                 self.pos.byte += 1;
-            },
+            }
             Some(Err(error)) => return Err(error.into()),
             None => return Err(Eof),
             _ => {
                 self.pos.column += 1;
                 self.pos.byte += 1;
-            },
+            }
         }
         Ok(())
     }
@@ -95,7 +95,11 @@ impl<R: Read> Lexer<R> {
 
     fn eat(&mut self, ch: char) -> Result<()> {
         if self.current_char()? != ch {
-            panic!("Expected character `{}`, but found `{}`.", ch, self.current_char()?);
+            panic!(
+                "Expected character `{}`, but found `{}`.",
+                ch,
+                self.current_char()?
+            );
         }
         self.advance()
     }
@@ -109,8 +113,7 @@ impl<R: Read> Lexer<R> {
                 Some(ch) => Ok(ch),
                 None => Err(Msg(format!("Invalid ascii code {}", ascii_code))),
             }
-        }
-        else {
+        } else {
             pos.length = buffer.len() + 1; // + 1 for the leading slash.
             Err(InvalidEscape {
                 escape: buffer,
@@ -120,21 +123,20 @@ impl<R: Read> Lexer<R> {
     }
 
     fn escape_char(&mut self, mut pos: Pos) -> Result<char> {
-        let escaped_char =
-            match self.current_char()? {
-                'n' => '\n',
-                't' => '\t',
-                '\\' => '\\',
-                '"' => '"',
-                ch if ch.is_digit(10) => return self.escape_ascii_code(pos),
-                escape => {
-                    pos.length = 2;
-                    return Err(InvalidEscape {
-                        escape: escape.to_string(),
-                        pos,
-                    })
-                },
-            };
+        let escaped_char = match self.current_char()? {
+            'n' => '\n',
+            't' => '\t',
+            '\\' => '\\',
+            '"' => '"',
+            ch if ch.is_digit(10) => return self.escape_ascii_code(pos),
+            escape => {
+                pos.length = 2;
+                return Err(InvalidEscape {
+                    escape: escape.to_string(),
+                    pos,
+                });
+            }
+        };
         self.advance()?;
         Ok(escaped_char)
     }
@@ -146,27 +148,26 @@ impl<R: Read> Lexer<R> {
     fn identifier(&mut self) -> Result<Token> {
         let ident = self.take_while(|ch| ch.is_alphanumeric() || ch == '_')?;
         let len = ident.len();
-        let token =
-            match ident.as_str() {
-                "array" => Array,
-                "break" => Break,
-                "do" => Do,
-                "else" => Else,
-                "end" => End,
-                "for" => For,
-                "function" => Function,
-                "if" => If,
-                "in" => In,
-                "let" => Let,
-                "nil" => Nil,
-                "of" => Of,
-                "then" => Then,
-                "to" => To,
-                "type" => Type,
-                "var" => Var,
-                "while" => While,
-                _ => Ident(ident),
-            };
+        let token = match ident.as_str() {
+            "array" => Array,
+            "break" => Break,
+            "do" => Do,
+            "else" => Else,
+            "end" => End,
+            "for" => For,
+            "function" => Function,
+            "if" => If,
+            "in" => In,
+            "let" => Let,
+            "nil" => Nil,
+            "of" => Of,
+            "then" => Then,
+            "to" => To,
+            "type" => Type,
+            "var" => Var,
+            "while" => While,
+            _ => Ident(ident),
+        };
         self.make_token(token, len)
     }
 
@@ -187,10 +188,7 @@ impl<R: Read> Lexer<R> {
         }
         let mut pos = self.saved_pos.clone();
         pos.length = length;
-        Ok(Token {
-            pos,
-            token,
-        })
+        Ok(Token { pos, token })
     }
 
     fn save_start(&mut self) {
@@ -201,10 +199,7 @@ impl<R: Read> Lexer<R> {
         let mut pos = self.pos.clone();
         pos.length = 1;
         self.advance()?;
-        Ok(Token {
-            pos,
-            token,
-        })
+        Ok(Token { pos, token })
     }
 
     fn skip_until_slash(&mut self) -> Result<()> {
@@ -213,14 +208,10 @@ impl<R: Read> Lexer<R> {
             if ch == '\\' {
                 self.advance()?;
                 break;
-            }
-            else if !ch.is_whitespace() {
+            } else if !ch.is_whitespace() {
                 let mut pos = self.current_pos();
                 pos.length = 1;
-                return Err(UnknownToken {
-                    pos,
-                    start: ch,
-                });
+                return Err(UnknownToken { pos, start: ch });
             }
             self.advance()?;
         }
@@ -238,14 +229,13 @@ impl<R: Read> Lexer<R> {
                     return Err(Unclosed {
                         pos,
                         token: "comment",
-                    })
-                },
+                    });
+                }
                 Err(error) => return Err(error),
                 _ => (),
             }
             self.token()
-        }
-        else {
+        } else {
             self.make_token(Slash, 1)
         }
     }
@@ -264,12 +254,10 @@ impl<R: Read> Lexer<R> {
                     self.advance()?;
                     if self.current_char()?.is_whitespace() {
                         self.skip_until_slash()?;
-                    }
-                    else {
+                    } else {
                         string.push(self.escape_char(pos)?);
                     }
-                }
-                else {
+                } else {
                     string.push(ch);
                     self.advance()?;
                 }
@@ -287,7 +275,7 @@ impl<R: Read> Lexer<R> {
                     pos,
                     token: "string",
                 })
-            },
+            }
             _ => result,
         }
     }
@@ -342,7 +330,7 @@ impl<R: Read> Lexer<R> {
                         pos,
                         start: ch as char,
                     })
-                },
+                }
             };
         }
         match self.bytes_iter.next() {
@@ -355,28 +343,25 @@ impl<R: Read> Lexer<R> {
     fn two_char_token(&mut self, tokens: Vec<(char, Tok)>, default: Tok) -> Result<Token> {
         self.save_start();
         self.advance()?;
-        let token =
-            match self.bytes_iter.peek() {
-                Some(&Ok(byte)) => {
-                    let mut token = None;
-                    let next_char = byte as char;
-                    for (ch, tok) in tokens {
-                        if ch == next_char {
-                            token = Some(tok);
-                        }
+        let token = match self.bytes_iter.peek() {
+            Some(&Ok(byte)) => {
+                let mut token = None;
+                let next_char = byte as char;
+                for (ch, tok) in tokens {
+                    if ch == next_char {
+                        token = Some(tok);
                     }
-                    token
-                },
-                _ => None,
-            };
-        let (token, len) =
-            if let Some(token) = token {
-                self.advance()?;
-                (token, 2)
+                }
+                token
             }
-            else {
-                (default, 1)
-            };
+            _ => None,
+        };
+        let (token, len) = if let Some(token) = token {
+            self.advance()?;
+            (token, 2)
+        } else {
+            (default, 1)
+        };
         self.make_token(token, len)
     }
 }

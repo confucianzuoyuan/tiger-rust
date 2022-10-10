@@ -1,15 +1,7 @@
-use std::collections::{
-    HashMap,
-    HashSet,
-    VecDeque,
-};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::mem;
 
-use ir::{
-    Exp,
-    RelationalOp,
-    Statement,
-};
+use ir::{Exp, RelationalOp, Statement};
 use temp::{Label, Temp};
 
 pub fn linearize(statement: Statement) -> Vec<Statement> {
@@ -19,8 +11,7 @@ pub fn linearize(statement: Statement) -> Vec<Statement> {
         if let Statement::Sequence(statement1, statement2) = statement {
             linear(*statement1, result);
             linear(*statement2, result);
-        }
-        else {
+        } else {
             result.push(statement);
         }
     }
@@ -48,7 +39,7 @@ pub fn basic_blocks(statements: Vec<Statement>) -> (Vec<Vec<Statement>>, Label) 
                 Statement::Label(_) => {
                     basic_blocks.push(vec![statement]);
                     continue;
-                },
+                }
                 _ => basic_blocks.push(vec![Statement::Label(Label::new())]),
             }
         }
@@ -56,21 +47,34 @@ pub fn basic_blocks(statements: Vec<Statement>) -> (Vec<Vec<Statement>>, Label) 
         if state == State::InBlock {
             match statement {
                 Statement::Label(ref label) => {
-                    basic_blocks.last_mut().expect("at least one basic block")
-                        .push(Statement::Jump(Exp::Name(label.clone()), vec![label.clone()]));
+                    basic_blocks
+                        .last_mut()
+                        .expect("at least one basic block")
+                        .push(Statement::Jump(
+                            Exp::Name(label.clone()),
+                            vec![label.clone()],
+                        ));
                     basic_blocks.push(vec![statement]);
-                },
+                }
                 Statement::Jump(_, _) | Statement::CondJump { .. } => {
-                    basic_blocks.last_mut().expect("at least one basic block for a jump").push(statement);
+                    basic_blocks
+                        .last_mut()
+                        .expect("at least one basic block for a jump")
+                        .push(statement);
                     state = State::Label;
-                },
-                statement => basic_blocks.last_mut().expect("at least one basic block for a jump").push(statement),
+                }
+                statement => basic_blocks
+                    .last_mut()
+                    .expect("at least one basic block for a jump")
+                    .push(statement),
             }
         }
     }
 
     if state == State::InBlock {
-        basic_blocks.last_mut().expect("at least one basic block")
+        basic_blocks
+            .last_mut()
+            .expect("at least one basic block")
             .push(Statement::Jump(Exp::Name(done.clone()), vec![done.clone()]));
     }
 
@@ -81,10 +85,13 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
     let mut label_mapping = HashMap::new();
     label_mapping.insert(&done_label, usize::max_value());
     for (index, basic_block) in basic_blocks.iter().enumerate() {
-        match basic_block.first().expect("at least one statement in basic block") {
+        match basic_block
+            .first()
+            .expect("at least one statement in basic block")
+        {
             Statement::Label(label) => {
                 let _ = label_mapping.insert(label, index);
-            },
+            }
             _ => panic!("label as first statement of basic block"),
         }
     }
@@ -98,15 +105,21 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
             marks.insert(index);
             current_trace.push(index);
 
-            match basic_block.last().expect("at least one instruction in basic block") {
-                Statement::CondJump { true_label, false_label, .. } => {
+            match basic_block
+                .last()
+                .expect("at least one instruction in basic block")
+            {
+                Statement::CondJump {
+                    true_label,
+                    false_label,
+                    ..
+                } => {
                     if let Some(&next_index) = marks.get(&label_mapping[false_label]) {
                         index = next_index;
-                    }
-                    else if let Some(&next_index) = marks.get(&label_mapping[true_label]) {
+                    } else if let Some(&next_index) = marks.get(&label_mapping[true_label]) {
                         index = next_index;
                     }
-                },
+                }
                 Statement::Jump(_, labels) => {
                     for label in labels {
                         if let Some(&next_index) = marks.get(&label_mapping[label]) {
@@ -114,7 +127,7 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
                             break;
                         }
                     }
-                },
+                }
                 _ => panic!("Expected jump as last statement of basic blocks"),
             }
         }
@@ -139,7 +152,13 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
     let mut current = statements.pop_front();
     while let Some(statement) = current {
         match statement {
-            Statement::CondJump { op, left, right, false_label, true_label } => {
+            Statement::CondJump {
+                op,
+                left,
+                right,
+                false_label,
+                true_label,
+            } => {
                 let next = statements.pop_front().expect("pop front label");
                 if next == Statement::Label(true_label.clone()) {
                     // Put the false label right after the jump by negating the condition and
@@ -151,8 +170,7 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
                         false_label: true_label,
                         true_label: false_label,
                     });
-                }
-                else if next == Statement::Label(false_label.clone()) {
+                } else if next == Statement::Label(false_label.clone()) {
                     new_statements.push(Statement::CondJump {
                         op,
                         left,
@@ -160,8 +178,7 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
                         false_label,
                         true_label,
                     });
-                }
-                else {
+                } else {
                     // If the condition is not followed by any of its labels, create a new label
                     // where the code will jump to the false label.
                     let new_false = Label::new();
@@ -173,10 +190,13 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
                         true_label,
                     });
                     new_statements.push(Statement::Label(new_false));
-                    new_statements.push(Statement::Jump(Exp::Name(false_label.clone()), vec![false_label]));
+                    new_statements.push(Statement::Jump(
+                        Exp::Name(false_label.clone()),
+                        vec![false_label],
+                    ));
                 }
                 new_statements.push(next);
-            },
+            }
             Statement::Jump(expr, labels) => {
                 match expr {
                     Exp::Name(label) => {
@@ -193,10 +213,10 @@ pub fn trace_schedule(mut basic_blocks: Vec<Vec<Statement>>, done_label: Label) 
                         }
 
                         new_statements.push(Statement::Jump(Exp::Name(label), labels));
-                    },
-                    _ => new_statements.push(Statement::Jump(expr, labels))
+                    }
+                    _ => new_statements.push(Statement::Jump(expr, labels)),
                 }
-            },
+            }
             statement => new_statements.push(statement),
         }
         current = statements.pop_front();
@@ -238,10 +258,12 @@ fn reorder1(expr: Exp) -> (Statement, Exp) {
 fn reorder2(expr1: Exp, expr2: Exp) -> (Statement, Exp, Exp) {
     if let Exp::Call(_, _) = expr1 {
         let temp = Temp::new();
-        return reorder2(Exp::ExpSequence(
-            Box::new(Statement::Move(Exp::Temp(temp), expr1)),
-            Box::new(Exp::Temp(temp))),
-            expr2
+        return reorder2(
+            Exp::ExpSequence(
+                Box::new(Statement::Move(Exp::Temp(temp), expr1)),
+                Box::new(Exp::Temp(temp)),
+            ),
+            expr2,
         );
     }
 
@@ -249,9 +271,12 @@ fn reorder2(expr1: Exp, expr2: Exp) -> (Statement, Exp, Exp) {
     let (statements2, expr2) = do_expression(expr2);
 
     if commute(&statements2, &expr1) {
-        (Statement::Sequence(Box::new(statements), Box::new(statements2)), expr1, expr2)
-    }
-    else {
+        (
+            Statement::Sequence(Box::new(statements), Box::new(statements2)),
+            expr1,
+            expr2,
+        )
+    } else {
         let temp = Temp::new();
         let statements = Statement::Sequence(
             Box::new(statements),
@@ -274,7 +299,7 @@ fn reorder(mut exprs: VecDeque<Exp>) -> (Statement, VecDeque<Exp>) {
         let function = exprs.pop_front().expect("pop front");
         exprs.push_front(Exp::ExpSequence(
             Box::new(Statement::Move(Exp::Temp(temp), function)),
-            Box::new(Exp::Temp(temp))
+            Box::new(Exp::Temp(temp)),
         ));
         return reorder(exprs);
     }
@@ -285,10 +310,12 @@ fn reorder(mut exprs: VecDeque<Exp>) -> (Statement, VecDeque<Exp>) {
     if commute(&statements2, &expr1) {
         expr2.push_front(expr1);
         (append(statements, statements2), expr2)
-    }
-    else {
+    } else {
         let temp = Temp::new();
-        let statements = append(statements, append(Statement::Move(Exp::Temp(temp), expr1), statements2));
+        let statements = append(
+            statements,
+            append(Statement::Move(Exp::Temp(temp), expr1), statements2),
+        );
         expr2.push_front(Exp::Temp(temp));
         (statements, expr2)
     }
@@ -299,12 +326,19 @@ fn reorder_statement1<F: FnOnce(Exp) -> Statement>(expr: Exp, builder: F) -> Sta
     Statement::Sequence(Box::new(statements), Box::new(builder(expr)))
 }
 
-fn reorder_statement2<F: FnOnce(Exp, Exp) -> Statement>(expr1: Exp, expr2: Exp, builder: F) -> Statement {
+fn reorder_statement2<F: FnOnce(Exp, Exp) -> Statement>(
+    expr1: Exp,
+    expr2: Exp,
+    builder: F,
+) -> Statement {
     let (statements, expr1, expr2) = reorder2(expr1, expr2);
     Statement::Sequence(Box::new(statements), Box::new(builder(expr1, expr2)))
 }
 
-fn reorder_statement<F: FnOnce(VecDeque<Exp>) -> Statement>(exprs: VecDeque<Exp>, builder: F) -> Statement {
+fn reorder_statement<F: FnOnce(VecDeque<Exp>) -> Statement>(
+    exprs: VecDeque<Exp>,
+    builder: F,
+) -> Statement {
     let (statements, exprs) = reorder(exprs);
     Statement::Sequence(Box::new(statements), Box::new(builder(exprs)))
 }
@@ -314,30 +348,44 @@ fn reorder_expression1<F: FnOnce(Exp) -> Exp>(expr: Exp, builder: F) -> (Stateme
     (statements, builder(expr))
 }
 
-fn reorder_expression2<F: FnOnce(Exp, Exp) -> Exp>(expr1: Exp, expr2: Exp, builder: F) -> (Statement, Exp) {
+fn reorder_expression2<F: FnOnce(Exp, Exp) -> Exp>(
+    expr1: Exp,
+    expr2: Exp,
+    builder: F,
+) -> (Statement, Exp) {
     let (statements, expr1, expr2) = reorder2(expr1, expr2);
     (statements, builder(expr1, expr2))
 }
 
-fn reorder_expression<F: FnOnce(VecDeque<Exp>) -> Exp>(exprs: VecDeque<Exp>, builder: F) -> (Statement, Exp) {
+fn reorder_expression<F: FnOnce(VecDeque<Exp>) -> Exp>(
+    exprs: VecDeque<Exp>,
+    builder: F,
+) -> (Statement, Exp) {
     let (statements, exprs) = reorder(exprs);
     (statements, builder(exprs))
 }
 
 fn do_statement(statement: Statement) -> Statement {
     match statement {
-        Statement::Sequence(statement1, statement2) =>
-            append(do_statement(*statement1), do_statement(*statement2)),
-        Statement::Jump(expr, labels) =>
-            reorder_statement1(expr, |expr| Statement::Jump(expr, labels)),
-        Statement::CondJump { op, left, right, true_label, false_label } =>
-            reorder_statement2(left, right, |left, right| Statement::CondJump {
-                op,
-                left,
-                right,
-                true_label,
-                false_label,
-            }),
+        Statement::Sequence(statement1, statement2) => {
+            append(do_statement(*statement1), do_statement(*statement2))
+        }
+        Statement::Jump(expr, labels) => {
+            reorder_statement1(expr, |expr| Statement::Jump(expr, labels))
+        }
+        Statement::CondJump {
+            op,
+            left,
+            right,
+            true_label,
+            false_label,
+        } => reorder_statement2(left, right, |left, right| Statement::CondJump {
+            op,
+            left,
+            right,
+            true_label,
+            false_label,
+        }),
         Statement::Move(Exp::Temp(temp), Exp::Call(function, arguments)) => {
             let mut exprs = VecDeque::new();
             exprs.push_back(*function);
@@ -345,17 +393,18 @@ fn do_statement(statement: Statement) -> Statement {
             reorder_statement(exprs, |mut exprs| {
                 let function = exprs.pop_front().expect("pop front");
                 let exprs = exprs.into_iter().collect();
-                Statement::Move(Exp::Temp(temp),
-                    Exp::Call(Box::new(function), exprs)
-                )
+                Statement::Move(Exp::Temp(temp), Exp::Call(Box::new(function), exprs))
             })
         }
-        Statement::Move(Exp::Temp(temp), expr) =>
-            reorder_statement1(expr, |expr| Statement::Move(Exp::Temp(temp), expr)),
-        Statement::Move(Exp::Mem(mem), expr) =>
-            reorder_statement2(*mem, expr, |mem, expr| Statement::Move(Exp::Mem(Box::new(mem)), expr)),
-        Statement::Move(Exp::ExpSequence(statement, expr1), expr2) =>
-            do_statement(Statement::Sequence(statement, Box::new(Statement::Move(*expr1, expr2)))),
+        Statement::Move(Exp::Temp(temp), expr) => {
+            reorder_statement1(expr, |expr| Statement::Move(Exp::Temp(temp), expr))
+        }
+        Statement::Move(Exp::Mem(mem), expr) => reorder_statement2(*mem, expr, |mem, expr| {
+            Statement::Move(Exp::Mem(Box::new(mem)), expr)
+        }),
+        Statement::Move(Exp::ExpSequence(statement, expr1), expr2) => do_statement(
+            Statement::Sequence(statement, Box::new(Statement::Move(*expr1, expr2))),
+        ),
         Statement::Exp(Exp::Call(function, arguments)) => {
             let mut exprs = VecDeque::new();
             exprs.push_back(*function);
@@ -365,28 +414,27 @@ fn do_statement(statement: Statement) -> Statement {
                 let exprs = exprs.into_iter().collect();
                 Statement::Exp(Exp::Call(Box::new(function), exprs))
             })
-        },
-        Statement::Exp(expr) =>
-            reorder_statement1(expr, |expr| Statement::Exp(expr)),
+        }
+        Statement::Exp(expr) => reorder_statement1(expr, |expr| Statement::Exp(expr)),
         _ => statement,
     }
 }
 
 fn do_expression(expr: Exp) -> (Statement, Exp) {
     match expr {
-        Exp::BinOp { op, left, right } =>
+        Exp::BinOp { op, left, right } => {
             reorder_expression2(*left, *right, |left, right| Exp::BinOp {
                 op,
                 left: Box::new(left),
                 right: Box::new(right),
-            }),
-        Exp::Mem(expr) =>
-            reorder_expression1(*expr, |expr| Exp::Mem(Box::new(expr))),
+            })
+        }
+        Exp::Mem(expr) => reorder_expression1(*expr, |expr| Exp::Mem(Box::new(expr))),
         Exp::ExpSequence(statement, expr) => {
             let statements1 = do_statement(*statement);
             let (statements2, expr) = do_expression(*expr);
             (append(statements1, statements2), expr)
-        },
+        }
         Exp::Call(function, arguments) => {
             let mut exprs = VecDeque::new();
             exprs.push_back(*function);
@@ -396,7 +444,7 @@ fn do_expression(expr: Exp) -> (Statement, Exp) {
                 let exprs = exprs.into_iter().collect();
                 Exp::Call(Box::new(function), exprs)
             })
-        },
+        }
         _ => (Statement::Exp(Exp::Const(0)), expr),
     }
 }
@@ -416,8 +464,13 @@ mod tests {
 
     #[test]
     fn test_rewrite_rules() {
-        let expr = Exp::ExpSequence(Box::new(Statement::Exp(Exp::Const(1))),
-            Box::new(Exp::ExpSequence(Box::new(Statement::Exp(Exp::Const(2))), Box::new(Exp::Const(3)))));
+        let expr = Exp::ExpSequence(
+            Box::new(Statement::Exp(Exp::Const(1))),
+            Box::new(Exp::ExpSequence(
+                Box::new(Statement::Exp(Exp::Const(2))),
+                Box::new(Exp::Const(3)),
+            )),
+        );
 
         let result = linearize(Statement::Exp(expr));
 

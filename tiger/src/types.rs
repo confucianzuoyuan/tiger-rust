@@ -1,5 +1,5 @@
 use self::Type::*;
-use symbol::{Symbol, Symbols, SymbolWithPos};
+use symbol::{Symbol, SymbolWithPos, Symbols};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
@@ -18,16 +18,15 @@ impl Type {
         match *self {
             Array(ref typ, _) => {
                 format!("[{}]", typ.show(symbols))
-            },
+            }
             Int => "int".to_string(),
             Name(_, ref typ) => {
                 if let Some(typ) = typ {
                     typ.show(symbols)
-                }
-                else {
+                } else {
                     "unresolved type".to_string()
                 }
-            },
+            }
             Nil => "nil".to_string(),
             Record(name, _, _) => format!("struct {}", symbols.name(name)),
             String => "string".to_string(),

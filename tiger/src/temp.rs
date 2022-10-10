@@ -1,7 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
-use frame::Frame;
 use self::Label::{Named, Num};
+use frame::Frame;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Temp {
@@ -13,9 +13,7 @@ impl Temp {
         static mut COUNTER: u32 = 16;
         unsafe {
             COUNTER += 1;
-            Self {
-                num: COUNTER,
-            }
+            Self { num: COUNTER }
         }
     }
 

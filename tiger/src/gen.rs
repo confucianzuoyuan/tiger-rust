@@ -4,39 +4,12 @@ use std::rc::Rc;
 use ast::Operator;
 use frame::{Fragment, Frame};
 use ir;
-use ir::BinOp::{
-    And,
-    Div,
-    Minus,
-    Mul,
-    Or,
-    Plus,
-};
-use ir::Exp::{
-    self,
-    BinOp,
-    Call,
-    Const,
-    ExpSequence,
-    Mem,
-    Name,
-};
+use ir::BinOp::{And, Div, Minus, Mul, Or, Plus};
+use ir::Exp::{self, BinOp, Call, Const, ExpSequence, Mem, Name};
 use ir::RelationalOp::{
-    self,
-    Equal,
-    NotEqual,
-    GreaterThan,
-    GreaterOrEqual,
-    LesserThan,
-    LesserOrEqual,
+    self, Equal, GreaterOrEqual, GreaterThan, LesserOrEqual, LesserThan, NotEqual,
 };
-use ir::Statement::{
-    self,
-    CondJump,
-    Jump,
-    Move,
-    Sequence,
-};
+use ir::Statement::{self, CondJump, Jump, Move, Sequence};
 use temp::{Label, Temp};
 
 #[allow(type_alias_bounds)]
@@ -79,7 +52,10 @@ impl<F: Frame> Level<F> {
     }
 
     pub fn formals(&self) -> Vec<Access<F>> {
-        self.current.borrow().formals().iter()
+        self.current
+            .borrow()
+            .formals()
+            .iter()
             .map(|access| (self.clone(), access.clone()))
             .collect()
     }
@@ -119,21 +95,25 @@ pub fn field_access<F: Frame>(var: Exp, field_index: usize) -> Exp {
     }))
 }
 
-pub fn function_call<F: Clone + Frame + PartialEq>(label: &Label, mut args: Vec<Exp>, parent_level: &Level<F>,
-    current_level: &Level<F>) -> Exp
-{
+pub fn function_call<F: Clone + Frame + PartialEq>(
+    label: &Label,
+    mut args: Vec<Exp>,
+    parent_level: &Level<F>,
+    current_level: &Level<F>,
+) -> Exp {
     if *current_level == *parent_level {
         // For a recursive call, we simply pass the current static link, which represents the stack
         // frame of the parent function.
         let frame = current_level.current.borrow();
-        args.push(frame.exp(frame.formals().last().expect("static link").clone(), Exp::Temp(F::fp())));
-    }
-    else if current_level.parent.as_ref().map(|level| &**level) == Some(parent_level) {
+        args.push(frame.exp(
+            frame.formals().last().expect("static link").clone(),
+            Exp::Temp(F::fp()),
+        ));
+    } else if current_level.parent.as_ref().map(|level| &**level) == Some(parent_level) {
         // When calling a function defined in the current frame, simply pass the current frame
         // pointer for the static link.
         args.push(Exp::Temp(F::fp()));
-    }
-    else {
+    } else {
         // When calling a function defined in a parent frame, go up throught the static links.
         let mut function_level = parent_level;
         let mut var = Exp::Temp(F::fp());
@@ -162,7 +142,12 @@ pub fn goto(label: Label) -> Exp {
     )
 }
 
-pub fn if_expression<F: Clone + Frame>(test_expr: Exp, if_expr: Exp, else_expr: Option<Exp>, level: &Level<F>) -> Exp {
+pub fn if_expression<F: Clone + Frame>(
+    test_expr: Exp,
+    if_expr: Exp,
+    else_expr: Option<Exp>,
+    level: &Level<F>,
+) -> Exp {
     let result = alloc_local(level, false);
     let true_label = Label::new();
     let false_label = Label::new();
@@ -210,27 +195,38 @@ pub fn record_create<F: Frame>(fields: Vec<Exp>) -> Exp {
     let result = Exp::Temp(Temp::new());
     let mut fields = fields.into_iter();
     let mut sequence = Sequence(
-        Box::new(Move(result.clone(), F::external_call("malloc", vec![Const(fields.len() as i64 * F::WORD_SIZE)]))),
-        Box::new(Move(Mem(Box::new(result.clone())), fields.next().expect("record first field"))),
+        Box::new(Move(
+            result.clone(),
+            F::external_call("malloc", vec![Const(fields.len() as i64 * F::WORD_SIZE)]),
+        )),
+        Box::new(Move(
+            Mem(Box::new(result.clone())),
+            fields.next().expect("record first field"),
+        )),
     );
     for (index, field) in fields.enumerate() {
         let index = index + 1; // Plus one because the first field was emitted before the loop.
         sequence = Sequence(
             Box::new(sequence),
-            Box::new(Move(Mem(Box::new(BinOp {
-                op: Plus,
-                left: Box::new(result.clone()),
-                right: Box::new(Const(index as i64 * F::WORD_SIZE)),
-            })), field))
+            Box::new(Move(
+                Mem(Box::new(BinOp {
+                    op: Plus,
+                    left: Box::new(result.clone()),
+                    right: Box::new(Const(index as i64 * F::WORD_SIZE)),
+                })),
+                field,
+            )),
         );
     }
-    ExpSequence(
-        Box::new(sequence),
-        Box::new(result),
-    )
+    ExpSequence(Box::new(sequence), Box::new(result))
 }
 
-pub fn relational_oper<F: Clone + Frame>(op: Operator, left: Exp, right: Exp, level: &Level<F>) -> Exp {
+pub fn relational_oper<F: Clone + Frame>(
+    op: Operator,
+    left: Exp,
+    right: Exp,
+    level: &Level<F>,
+) -> Exp {
     let result = alloc_local(level, false);
     let true_label = Label::new();
     let false_label = Label::new();
@@ -257,7 +253,7 @@ pub fn relational_oper<F: Clone + Frame>(op: Operator, left: Exp, right: Exp, le
                             Box::new(Sequence(
                                 Box::new(Move(result.clone(), Const(0))),
                                 Box::new(Statement::Label(end_label)),
-                            ))
+                            )),
                         )),
                     )),
                 )),
@@ -274,8 +270,20 @@ pub fn simple_var<F: Clone + Frame + PartialEq>(access: Access<F>, level: &Level
     let mut var = Exp::Temp(F::fp());
     // Add the offset of each parent frames (static link).
     while function_level.current != var_level.current {
-        var = frame.exp(function_level.current.borrow().formals().last().expect("static link").clone(), var);
-        function_level = function_level.parent.as_ref().unwrap_or_else(|| panic!("function level should have a parent"));
+        var = frame.exp(
+            function_level
+                .current
+                .borrow()
+                .formals()
+                .last()
+                .expect("static link")
+                .clone(),
+            var,
+        );
+        function_level = function_level
+            .parent
+            .as_ref()
+            .unwrap_or_else(|| panic!("function level should have a parent"));
     }
     var = frame.exp(access.1, var);
     var
@@ -318,10 +326,7 @@ pub fn var_decs(variables: Vec<Statement>, body: Exp) -> Exp {
     let var2 = iter.next().expect("second variable declaration");
     let mut statements = Sequence(Box::new(var1), Box::new(var2));
     for var in iter {
-        statements = Sequence(
-            Box::new(statements),
-            Box::new(var),
-        );
+        statements = Sequence(Box::new(statements), Box::new(var));
     }
     ExpSequence(Box::new(statements), Box::new(body))
 }
@@ -384,11 +389,9 @@ pub struct Gen<F: Frame> {
     fragments: Vec<Fragment<F>>,
 }
 
-impl<F:Frame> Gen<F> {
+impl<F: Frame> Gen<F> {
     pub fn new() -> Self {
-        Self {
-            fragments: vec![],
-        }
+        Self { fragments: vec![] }
     }
 
     pub fn get_result(self) -> Vec<Fragment<F>> {

@@ -49,25 +49,11 @@ pub const R15: Temp = Temp { num: 16 };
 
 impl X86_64 {
     pub fn arg_registers() -> Vec<Temp> {
-        vec![
-            RDI,
-            RSI,
-            RDX,
-            RCX,
-            R8,
-            R9,
-        ]
+        vec![RDI, RSI, RDX, RCX, R8, R9]
     }
 
     fn callee_saved_registers() -> Vec<Temp> {
-        vec![
-            RBX,
-            RBP,
-            R12,
-            R13,
-            R14,
-            R15,
-        ]
+        vec![RBX, RBP, R12, R13, R14, R15]
     }
 
     fn special_registers() -> Vec<Temp> {

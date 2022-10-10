@@ -13,8 +13,7 @@ pub struct Pos {
     pub line: u32,
 }
 
-impl Pos {
-}
+impl Pos {}
 
 impl Pos {
     pub fn new(line: u32, column: u32, byte: u64, file: Symbol, length: usize) -> Self {
@@ -43,7 +42,16 @@ impl Pos {
 
     pub fn show(&self, symbols: &Symbols<()>, terminal: &Terminal) {
         let filename = symbols.name(self.file);
-        eprintln!("   {}{}-->{}{} {}:{}:{}", terminal.bold(), terminal.blue(), terminal.reset_color(), terminal.end_bold(), filename, self.line, self.column)
+        eprintln!(
+            "   {}{}-->{}{} {}:{}:{}",
+            terminal.bold(),
+            terminal.blue(),
+            terminal.reset_color(),
+            terminal.end_bold(),
+            filename,
+            self.line,
+            self.column
+        )
     }
 }
 
@@ -61,10 +69,7 @@ pub struct WithPos<T> {
 
 impl<T> WithPos<T> {
     pub fn new(node: T, pos: Pos) -> Self {
-        Self {
-            node,
-            pos,
-        }
+        Self { node, pos }
     }
 
     pub fn dummy(node: T) -> Self {

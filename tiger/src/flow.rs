@@ -46,23 +46,22 @@ impl<'a> GraphBuilder<'a> {
         }
 
         let instruction = &self.instructions[current_index];
-        let is_move =
-            match instruction {
-                Instruction::Move { .. } => true,
-                _ => false,
-            };
-        let defines =
-            match instruction {
-                Instruction::Move { destination, .. } | Instruction::Operation { destination, .. } =>
-                    destination.iter().cloned().collect(),
-                _ => HashSet::new(),
-            };
-        let uses =
-            match instruction {
-                Instruction::Move { source, .. } | Instruction::Operation { source, .. } =>
-                    source.iter().cloned().collect(),
-                _ => HashSet::new(),
-            };
+        let is_move = match instruction {
+            Instruction::Move { .. } => true,
+            _ => false,
+        };
+        let defines = match instruction {
+            Instruction::Move { destination, .. } | Instruction::Operation { destination, .. } => {
+                destination.iter().cloned().collect()
+            }
+            _ => HashSet::new(),
+        };
+        let uses = match instruction {
+            Instruction::Move { source, .. } | Instruction::Operation { source, .. } => {
+                source.iter().cloned().collect()
+            }
+            _ => HashSet::new(),
+        };
         let node = Node {
             defines,
             uses,
@@ -73,7 +72,12 @@ impl<'a> GraphBuilder<'a> {
         if let Some(predecessor) = predecessor {
             self.control_flow_graph.link(predecessor, entry);
         }
-        if let Instruction::Operation { ref assembly, ref jump, .. } = instruction {
+        if let Instruction::Operation {
+            ref assembly,
+            ref jump,
+            ..
+        } = instruction
+        {
             // 将当前节点作为前驱，从跳转标签继续遍历控制流图。
             if let Some(ref jump) = *jump {
                 for jump in jump {
@@ -115,7 +119,5 @@ pub fn instructions_to_graph(instructions: &[Instruction]) -> FlowGraph {
     };
     graph_builder.build(0, None);
 
-    FlowGraph {
-        control_flow_graph,
-    }
+    FlowGraph { control_flow_graph }
 }

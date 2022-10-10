@@ -24,9 +24,17 @@ impl Instruction {
     pub fn to_string<F: Frame>(&self) -> String {
         match *self {
             Instruction::Label { ref assembly, .. } => assembly.clone(),
-            Instruction::Move { ref assembly, ref destination, ref source } |
-                Instruction::Operation { ref assembly, ref destination, ref source, .. } =>
-            {
+            Instruction::Move {
+                ref assembly,
+                ref destination,
+                ref source,
+            }
+            | Instruction::Operation {
+                ref assembly,
+                ref destination,
+                ref source,
+                ..
+            } => {
                 let mut result = assembly.clone();
                 for (index, temp) in destination.iter().enumerate() {
                     result = result.replace(&format!("'d{}", index), &temp.to_string::<F>());
@@ -35,7 +43,7 @@ impl Instruction {
                     result = result.replace(&format!("'s{}", index), &temp.to_string::<F>());
                 }
                 result
-            },
+            }
         }
     }
 }
