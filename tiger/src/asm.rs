@@ -1,7 +1,7 @@
 use frame::Frame;
 use temp::{Label, Temp};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     Operation {
         assembly: String,

@@ -25,6 +25,7 @@ mod temp;
 mod terminal;
 mod token;
 mod types;
+mod simplest_reg_alloc;
 
 use std::env::args;
 use std::fs::{read_dir, File};
@@ -46,6 +47,7 @@ use reg_alloc::alloc;
 use semant::SemanticAnalyzer;
 use symbol::{Strings, Symbols};
 use terminal::Terminal;
+use simplest_reg_alloc::simplest_allocate;
 
 fn main() {
     let strings = Rc::new(Strings::new());
@@ -116,7 +118,12 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                         let instructions = generator.get_result();
                         let instructions = frame.proc_entry_exit2(instructions);
 
-                        let instructions = alloc::<X86_64>(instructions, &mut *frame);
+                        for instruction in &instructions {
+                            println!("{}", instruction.to_string::<X86_64>());
+                        }
+
+                        // let instructions = alloc::<X86_64>(instructions, &mut *frame);
+                        let instructions = simplest_allocate::<X86_64>(instructions, &mut frame);
 
                         let subroutine = frame.proc_entry_exit3(instructions);
                         writeln!(file, "    {}", subroutine.prolog)?;

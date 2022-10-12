@@ -78,6 +78,7 @@ fn allocate<F: Frame>(
     }
 }
 
+/// 将伪指令中的临时变量替换为分配好的机器寄存器。
 fn replace_allocation(
     mut instructions: Vec<Instruction>,
     allocation: Allocation,
@@ -157,17 +158,37 @@ fn rewrite_program<F: Frame>(
                 ref source,
                 ..
             } => {
+                // mov r17, r18
+                // 如果r17和r18都是需要溢出的寄存器，那么方法是：
+                // mov r19 [fp + -8]
+                // mov r18 r19
+                // mov r17 r18
+                // mov [fp + -16] r18
+                //
+                // r1 <- r2 + r1 (add r1 r2)
+                // 如果r1和r2都需要溢出，那么方法是：
+                // mov r3 [fp + -8]
+                // mov r2 r3
+                // r1 <- r2 + r1
+                // mov [fp + -16] r1
+                // 取出目标寄存器列表中第一个需要溢出的寄存器。
                 if let Some(spill) = destination
                     .iter()
                     .find(|destination| spills.contains(destination))
                 {
+                    // 取出source临时变量列表中的第一个需要溢出的临时变量。
                     if let Some(spill) = source.iter().find(|source| spills.contains(source)) {
+                        // IR语句的结果保存在temp临时变量中。
+                        // IR语句的作用是计算溢出变量在内存中的位置
                         let temp = gen.munch_expression(memory[spill].clone());
+                        // 将temp中的值拷贝到spill临时变量中。
                         gen.munch_statement(Statement::Move(Exp::Temp(*spill), Exp::Temp(temp)));
+                        // temp是新产生的临时变量。
                         new_temps.insert(temp);
                     }
                     let spill = spill.clone();
                     gen.emit(instruction);
+                    // 将目标spill临时变量中的值写入内存中。
                     gen.munch_statement(Statement::Move(memory[&spill].clone(), Exp::Temp(spill)));
                 } else if let Some(spill) = source.iter().find(|source| spills.contains(source)) {
                     let temp = gen.munch_expression(memory[spill].clone());

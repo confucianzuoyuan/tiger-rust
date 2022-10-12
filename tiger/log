@@ -1,0 +1,566 @@
+l90:
+mov t43, rbx
+mov t44, rbp
+mov t45, r12
+mov t46, r13
+mov t47, r14
+mov t48, r15
+mov [rbp + -8], rdi
+mov t58, 0
+mov t17, t58
+mov t61, [rbp + -8]
+mov t60, [t61 + -16]
+mov t59, t60
+sub t59, 1
+mov t18, t59
+cmp t17, t18
+jg l17
+l16:
+mov t65, 1
+mov t19, t65
+jmp l18
+l17:
+mov t66, 0
+mov t19, t66
+l18:
+mov t68, 1
+cmp t19, t68
+jne l53
+l52:
+l50:
+mov t69, 1
+mov t70, 1
+cmp t69, t70
+jne l19
+l51:
+mov t71, 0
+mov t20, t71
+mov t74, [rbp + -8]
+mov t73, [t74 + -16]
+mov t72, t73
+sub t72, 1
+mov t21, t72
+cmp t20, t21
+jg l21
+l20:
+mov t78, 1
+mov t22, t78
+jmp l22
+l21:
+mov t79, 0
+mov t22, t79
+l22:
+mov t81, 1
+cmp t22, t81
+jne l41
+l40:
+l38:
+mov t82, 1
+mov t83, 1
+cmp t82, t83
+jne l23
+l39:
+mov t85, [rbp + -8]
+mov t84, [t85 + -32]
+mov t49, t84
+mov t88, t49
+mov t90, 8
+mov rax, t17
+mul t90
+mov t90, rax
+add t88, t90
+mov t87, [t88]
+cmp t87, t20
+jne l25
+l24:
+mov t93, 1
+mov t23, t93
+jmp l26
+l25:
+mov t94, 0
+mov t23, t94
+l26:
+mov t96, 1
+cmp t23, t96
+jne l30
+l29:
+mov t97, l27
+mov t24, t97
+jmp l31
+l30:
+mov t98, l28
+mov t24, t98
+l31:
+mov rdi, t24
+call print
+mov t99, rax
+cmp t20, t21
+jge l33
+l32:
+mov t103, 1
+mov t25, t103
+jmp l34
+l33:
+mov t104, 0
+mov t25, t104
+l34:
+mov t106, 1
+cmp t25, t106
+jne l36
+l35:
+mov t107, t20
+add t107, 1
+mov t20, t107
+mov t109, 0
+mov t26, t109
+jmp l37
+l36:
+jmp l23
+l91:
+mov t110, 0
+mov t26, t110
+l37:
+jmp l38
+l23:
+mov t112, 0
+mov t27, t112
+jmp l42
+l41:
+mov t113, 0
+mov t27, t113
+l42:
+mov t116, l43
+mov rdi, t116
+call print
+mov t115, rax
+cmp t17, t18
+jge l45
+l44:
+mov t119, 1
+mov t28, t119
+jmp l46
+l45:
+mov t120, 0
+mov t28, t120
+l46:
+mov t122, 1
+cmp t28, t122
+jne l48
+l47:
+mov t123, t17
+add t123, 1
+mov t17, t123
+mov t125, 0
+mov t29, t125
+jmp l49
+l48:
+jmp l19
+l92:
+mov t126, 0
+mov t29, t126
+l49:
+jmp l50
+l19:
+mov t128, 0
+mov t30, t128
+jmp l54
+l53:
+mov t129, 0
+mov t30, t129
+l54:
+mov t132, l55
+mov rdi, t132
+call print
+mov t131, rax
+mov rax, t131
+mov rbx, t43
+mov rbp, t44
+mov r12, t45
+mov r13, t46
+mov r14, t47
+mov r15, t48
+jmp l89
+l89:
+
+l94:
+mov t164, rbx
+mov t165, rbp
+mov t166, r12
+mov t167, r13
+mov t168, r14
+mov t169, r15
+mov [rbp + -8], rdi
+mov [rbp + -16], rsi
+mov t200, [rbp + -8]
+mov t170, t200
+mov t204, [rbp + -16]
+mov t203, [t204 + -16]
+cmp t170, t203
+jne l57
+l56:
+mov t206, 1
+mov t31, t206
+jmp l58
+l57:
+mov t207, 0
+mov t31, t207
+l58:
+mov t209, 1
+cmp t31, t209
+jne l87
+l86:
+mov t211, [rbp + -16]
+mov rdi, t211
+call printBoard
+mov t210, rax
+mov t42, t210
+jmp l88
+l87:
+mov t213, 0
+mov t32, t213
+mov t216, [rbp + -16]
+mov t215, [t216 + -16]
+mov t214, t215
+sub t214, 1
+mov t33, t214
+cmp t32, t33
+jg l60
+l59:
+mov t220, 1
+mov t34, t220
+jmp l61
+l60:
+mov t221, 0
+mov t34, t221
+l61:
+mov t223, 1
+cmp t34, t223
+jne l84
+l83:
+l81:
+mov t224, 1
+mov t225, 1
+cmp t224, t225
+jne l62
+l82:
+mov t227, [rbp + -16]
+mov t226, [t227 + -24]
+mov t171, t226
+mov t230, t171
+mov t232, 8
+mov rax, t32
+mul t232
+mov t232, rax
+add t230, t232
+mov t229, [t230]
+mov t234, 0
+cmp t229, t234
+jne l64
+l63:
+mov t235, 1
+mov t35, t235
+jmp l65
+l64:
+mov t236, 0
+mov t35, t236
+l65:
+mov t174, t35
+mov t239, [rbp + -16]
+mov t238, [t239 + -40]
+mov t173, t238
+mov t172, t32
+mov t243, t173
+mov t245, 8
+mov t246, t172
+mov t248, [rbp + -8]
+add t246, t248
+mov rax, t246
+mul t245
+mov t245, rax
+add t243, t245
+mov t242, [t243]
+mov t250, 0
+cmp t242, t250
+jne l67
+l66:
+mov t251, 1
+mov t36, t251
+jmp l68
+l67:
+mov t252, 0
+mov t36, t252
+l68:
+mov t253, t174
+and t253, t36
+mov t177, t253
+mov t257, [rbp + -16]
+mov t256, [t257 + -48]
+mov t176, t256
+mov t259, t32
+add t259, 7
+mov t175, t259
+mov t262, t176
+mov t264, 8
+mov t265, t175
+mov t267, [rbp + -8]
+sub t265, t267
+mov rax, t265
+mul t264
+mov t264, rax
+add t262, t264
+mov t261, [t262]
+mov t269, 0
+cmp t261, t269
+jne l70
+l69:
+mov t270, 1
+mov t37, t270
+jmp l71
+l70:
+mov t271, 0
+mov t37, t271
+l71:
+mov t272, t177
+and t272, t37
+mov t275, 1
+cmp t272, t275
+jne l73
+l72:
+mov t277, [rbp + -16]
+mov t276, [t277 + -24]
+mov t178, t276
+mov t279, t178
+mov t281, 8
+mov rax, t32
+mul t281
+mov t281, rax
+add t279, t281
+mov t283, 1
+mov [t279], t283
+mov t285, [rbp + -16]
+mov t284, [t285 + -40]
+mov t180, t284
+mov t179, t32
+mov t288, t180
+mov t290, 8
+mov t291, t179
+mov t293, [rbp + -8]
+add t291, t293
+mov rax, t291
+mul t290
+mov t290, rax
+add t288, t290
+mov t295, 1
+mov [t288], t295
+mov t297, [rbp + -16]
+mov t296, [t297 + -48]
+mov t182, t296
+mov t299, t32
+add t299, 7
+mov t181, t299
+mov t301, t182
+mov t303, 8
+mov t304, t181
+mov t306, [rbp + -8]
+sub t304, t306
+mov rax, t304
+mul t303
+mov t303, rax
+add t301, t303
+mov t308, 1
+mov [t301], t308
+mov t310, [rbp + -16]
+mov t309, [t310 + -32]
+mov t183, t309
+mov t312, t183
+mov t314, 8
+mov t315, [rbp + -8]
+mov rax, t315
+mul t314
+mov t314, rax
+add t312, t314
+mov [t312], t32
+mov t319, [rbp + -8]
+mov t318, t319
+add t318, 1
+mov t184, t318
+mov rdi, t184
+mov t323, [rbp + -16]
+mov rsi, t323
+call try
+mov t321, rax
+mov t326, [rbp + -16]
+mov t325, [t326 + -24]
+mov t185, t325
+mov t328, t185
+mov t330, 8
+mov rax, t32
+mul t330
+mov t330, rax
+add t328, t330
+mov t332, 0
+mov [t328], t332
+mov t334, [rbp + -16]
+mov t333, [t334 + -40]
+mov t187, t333
+mov t186, t32
+mov t337, t187
+mov t339, 8
+mov t340, t186
+mov t342, [rbp + -8]
+add t340, t342
+mov rax, t340
+mul t339
+mov t339, rax
+add t337, t339
+mov t344, 0
+mov [t337], t344
+mov t346, [rbp + -16]
+mov t345, [t346 + -48]
+mov t189, t345
+mov t348, t32
+add t348, 7
+mov t188, t348
+mov t350, t189
+mov t352, 8
+mov t353, t188
+mov t355, [rbp + -8]
+sub t353, t355
+mov rax, t353
+mul t352
+mov t352, rax
+add t350, t352
+mov t357, 0
+mov [t350], t357
+mov t358, 0
+mov t38, t358
+jmp l74
+l73:
+mov t359, 0
+mov t38, t359
+l74:
+cmp t32, t33
+jge l76
+l75:
+mov t363, 1
+mov t39, t363
+jmp l77
+l76:
+mov t364, 0
+mov t39, t364
+l77:
+mov t366, 1
+cmp t39, t366
+jne l79
+l78:
+mov t367, t32
+add t367, 1
+mov t32, t367
+mov t369, 0
+mov t40, t369
+jmp l80
+l79:
+jmp l62
+l95:
+mov t370, 0
+mov t40, t370
+l80:
+jmp l81
+l62:
+mov t372, 0
+mov t41, t372
+jmp l85
+l84:
+mov t373, 0
+mov t41, t373
+l85:
+mov t42, t41
+l88:
+mov rax, t42
+mov rbx, t164
+mov rbp, t165
+mov r12, t166
+mov r13, t167
+mov r14, t168
+mov r15, t169
+jmp l93
+l93:
+
+l97:
+mov t397, rbx
+mov t398, rbp
+mov t399, r12
+mov t400, r13
+mov t401, r14
+mov t402, r15
+mov [rbp + -8], rdi
+mov t418, 4
+mov [rbp + -16], t418
+mov t419, rbp
+add t419, -24
+mov t403, t419
+mov t423, [rbp + -16]
+mov rdi, t423
+mov t425, 0
+mov rsi, t425
+call initArray
+mov t422, rax
+mov [t403], t422
+mov t426, rbp
+add t426, -32
+mov t404, t426
+mov t430, [rbp + -16]
+mov rdi, t430
+mov t432, 0
+mov rsi, t432
+call initArray
+mov t429, rax
+mov [t404], t429
+mov t433, rbp
+add t433, -40
+mov t406, t433
+mov t435, [rbp + -16]
+mov t405, t435
+mov t440, t405
+mov t442, [rbp + -16]
+add t440, t442
+mov t439, t440
+sub t439, 1
+mov rdi, t439
+mov t444, 0
+mov rsi, t444
+call initArray
+mov t438, rax
+mov [t406], t438
+mov t445, rbp
+add t445, -48
+mov t408, t445
+mov t447, [rbp + -16]
+mov t407, t447
+mov t452, t407
+mov t454, [rbp + -16]
+add t452, t454
+mov t451, t452
+sub t451, 1
+mov rdi, t451
+mov t456, 0
+mov rsi, t456
+call initArray
+mov t450, rax
+mov [t408], t450
+mov t458, 0
+mov rdi, t458
+mov rsi, rbp
+call try
+mov t457, rax
+mov t460, 0
+mov rax, t460
+mov rbx, t397
+mov rbp, t398
+mov r12, t399
+mov r13, t400
+mov r14, t401
+mov r15, t402
+jmp l96
+l96:
+

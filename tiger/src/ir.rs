@@ -21,6 +21,7 @@ pub enum Exp {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
+    /// Move(dst, src)
     Move(Exp, Exp),
     Exp(Exp),
     Jump(Exp, Vec<Label>),
