@@ -1,6 +1,6 @@
 let var n := 10
     var minus_n := -n
 in (
-    printi(minus_n)
+    minus_n
 )
 end

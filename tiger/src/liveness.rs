@@ -55,8 +55,8 @@ impl InterferenceGraph {
 }
 
 /// ```text
-/// in[n] = use[n] \/ (out[n] - def[n])
-/// out[n] = forall s in succ[n]: \/ in[s]
+/// in[n] = use[n] ∪ (out[n] - def[n])
+/// out[n] = ∀s ∈ succ[n]: ∪in[s]
 /// ```
 pub fn interference_graph(graph: FlowGraph) -> InterferenceGraph {
     let mut live_in: HashMap<usize, HashSet<Temp>> = HashMap::new();

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub struct Entry(usize);
 
 impl Entry {
@@ -9,7 +9,7 @@ impl Entry {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Node<T> {
     element: T,
     predecessors: Vec<Entry>,

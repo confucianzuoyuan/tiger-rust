@@ -4,6 +4,7 @@ use asm::Instruction;
 use graph::{self, Entry, Graph};
 use temp::{Label, Temp};
 
+#[derive(Debug)]
 pub struct Node {
     pub defines: HashSet<Temp>,
     pub uses: HashSet<Temp>,
