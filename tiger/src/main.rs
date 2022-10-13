@@ -63,6 +63,19 @@ fn main() {
 fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
     let mut args = args();
     args.next();
+    let mut reg_alloc_strategy = String::new();
+    if let Some(arg) = args.next() {
+        if arg == "-h" {
+            println!("-simplealloc filename.tig");
+            println!("  最简单的寄存器分配策略");
+            println!("-coloralloc filename.tig");
+            println!("  图着色寄存器分配策略");
+        } else if arg == "-simplealloc" {
+            reg_alloc_strategy = "simple".to_string();
+        } else if arg == "-coloralloc" {
+            reg_alloc_strategy = "color".to_string();
+        }
+    }
     if let Some(filename) = args.next() {
         let file = BufReader::new(File::open(&filename)?);
         let file_symbol = symbols.symbol(&filename);
@@ -118,14 +131,16 @@ fn drive(strings: Rc<Strings>, symbols: &mut Symbols<()>) -> Result<(), Error> {
                         let instructions = generator.get_result();
                         let instructions = frame.proc_entry_exit2(instructions);
 
-                        for instruction in &instructions {
-                            println!("{}", instruction.to_string::<X86_64>());
+                        let instructions_;
+                        if reg_alloc_strategy == "color" {
+                            instructions_ = alloc::<X86_64>(instructions, &mut *frame);
+                        } else if reg_alloc_strategy == "simple" {
+                            instructions_ = simplest_allocate::<X86_64>(instructions, &mut frame);
+                        } else {
+                            instructions_ = alloc::<X86_64>(instructions, &mut *frame);
                         }
 
-                        // let instructions = alloc::<X86_64>(instructions, &mut *frame);
-                        let instructions = simplest_allocate::<X86_64>(instructions, &mut frame);
-
-                        let subroutine = frame.proc_entry_exit3(instructions);
+                        let subroutine = frame.proc_entry_exit3(instructions_);
                         writeln!(file, "    {}", subroutine.prolog)?;
                         for instruction in subroutine.body {
                             writeln!(file, "    {}", instruction.to_string::<X86_64>())?;

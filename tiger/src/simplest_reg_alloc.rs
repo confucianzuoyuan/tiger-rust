@@ -1,3 +1,5 @@
+//! 实现最简单的寄存器分配方法。就是将所有非机器寄存器的临时变量，全部溢出到栈帧内存中。
+
 use std::collections::HashMap;
 
 use frame::Frame;
@@ -10,6 +12,9 @@ use ir::{Exp, Statement};
 
 use frame::x86_64::{R10, R11};
 
+/// 非机器寄存器的临时变量全部溢出
+/// 
+/// 判断一个临时变量是否需要溢出
 fn is_spilled<F: Frame>(temp: Temp) -> bool {
     if !F::temp_map().contains_key(&temp) {
         return true;
@@ -21,10 +26,13 @@ pub fn simplest_allocate<F: Frame>(
     mut instructions: Vec<Instruction>,
     frame: &mut F,
 ) -> Vec<Instruction> {
+    // K: 需要溢出的临时变量
+    // V: 访问溢出到内存中的临时变量的IR语句 
     let mut memory = HashMap::new();
 
     let mut gen = Gen::new();
 
+    // 将所有需要溢出的临时变量保存到spills数组中
     let mut spills = vec![];
     for instruction in &instructions {
         match instruction {
@@ -53,12 +61,19 @@ pub fn simplest_allocate<F: Frame>(
         }
     }
 
+    // 遍历每个需要溢出的临时变量，生成对应的访存IR语句
     for spill in &spills {
         let local = frame.alloc_local(true);
         let exp = frame.exp(local, Exp::Temp(F::fp()));
         memory.insert(spill, exp);
     }
 
+    // 目标临时变量中最多只有一个需要溢出的临时变量，且如果存在，一定位于destination数组的第0个位置。
+    // 源临时变量中最多有两个需要溢出的临时变量，且如果存在，一定位于source[0]和/或source[1]
+    //   - source[0]和source[1]都溢出
+    //   - source[0]溢出，source[1]不溢出
+    //   - source[0]不溢出，source[1]溢出
+    //   - 其他情况
     for instruction in &mut instructions {
         match instruction {
             Instruction::Move {
